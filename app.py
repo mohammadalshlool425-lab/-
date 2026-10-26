@@ -11,7 +11,7 @@ from pathlib import Path
 from config import validate_production_env
 from oidc import OIDCClient, OIDCError
 from repository import DataStoreError, PostgresRepository
-from security import IAMService, can
+from security import IAMService, RedisWindowLimiter, can
 
 
 HTML = r'''<!doctype html>
@@ -1509,7 +1509,7 @@ STATIC_ASSETS = {
 }
 
 
-APP_VERSION = '0.10.0'
+APP_VERSION = '0.11.0'
 MAX_PATH_LENGTH = 2048
 RATE_LIMIT_WINDOW = 60
 RATE_LIMIT_MAX_REQUESTS = 180
@@ -1521,6 +1521,9 @@ _rate_buckets = defaultdict(deque)
 _rate_lock = threading.Lock()
 API_BODY_LIMIT = 16 * 1024
 IAM = IAMService()
+REQUEST_LIMITER = None
+if os.environ.get('RATE_LIMIT_STORE', os.environ.get('SESSION_STORE', 'memory')).lower() == 'redis':
+    REQUEST_LIMITER = RedisWindowLimiter(os.environ.get('REDIS_URL'), limit=RATE_LIMIT_MAX_REQUESTS, window_seconds=RATE_LIMIT_WINDOW)
 OIDC = None
 OIDC_INIT_ERROR = None
 if os.environ.get('IAM_MODE', 'local').lower() == 'oidc':
@@ -1576,8 +1579,10 @@ class AppHandler(BaseHTTPRequestHandler):
         IAM.audit_log.record(action, actor=actor, success=success, client_ip=self._client_ip(), details=details, request_id=self._request_id())
 
     def _rate_allowed(self):
-        now = time.monotonic()
         ip = self._client_ip()
+        if REQUEST_LIMITER is not None:
+            return REQUEST_LIMITER.allowed(ip)
+        now = time.monotonic()
         with _rate_lock:
             bucket = _rate_buckets[ip]
             cutoff = now - RATE_LIMIT_WINDOW

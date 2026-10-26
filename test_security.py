@@ -3,7 +3,7 @@ import os
 import unittest
 import uuid
 
-from security import AuditLog, IAMService, Identity, RedisLoginThrottle, RedisSessionStore, SessionStore, can, generate_totp_secret, hash_password, totp_code, verify_password, verify_totp
+from security import AuditLog, IAMService, Identity, RedisLoginThrottle, RedisSessionStore, RedisWindowLimiter, SessionStore, can, generate_totp_secret, hash_password, totp_code, verify_password, verify_totp
 
 
 class FakeRedis:
@@ -45,6 +45,13 @@ class SecurityPrimitiveTests(unittest.TestCase):
         self.assertFalse(throttle.allowed('same-client'))
         throttle.success('same-client')
         self.assertTrue(throttle.allowed('same-client'))
+
+    def test_redis_window_limiter_is_distributed_and_time_bounded(self):
+        limiter = RedisWindowLimiter(client=FakeRedis(), limit=2, window_seconds=60)
+        self.assertTrue(limiter.allowed('same-client', now=100))
+        self.assertTrue(limiter.allowed('same-client', now=101))
+        self.assertFalse(limiter.allowed('same-client', now=102))
+        self.assertTrue(limiter.allowed('same-client', now=160))
 
     def test_redis_sessions_round_trip_and_revoke(self):
         store = RedisSessionStore(client=FakeRedis(), ttl_seconds=60)

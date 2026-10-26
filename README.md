@@ -1,6 +1,6 @@
 # عزوتك | خدماتك أقرب
 
-إصدار النموذج الحالي: `0.10.0`
+إصدار النموذج الحالي: `0.11.0`
 
 نموذج تفاعلي RTL لمنصة خدمات منزلية أردنية، مع واجهة العميل ولوحة المدير العام ومركز حماية تشغيلي.
 
@@ -43,7 +43,7 @@ python -m py_compile app.py security.py jobs.py worker.py config.py oidc.py scri
 - `manifest.webmanifest`: تعريف قابلية التثبيت كتطبيق PWA.
 - `favicon.svg`: هوية عزوتك المصغّرة.
 - `SECURITY.md`: متطلبات الحماية قبل ربط بيانات حقيقية أو مدفوعات.
-- `security.py`: IAM وMFA وRBAC والجلسات وCSRF primitives، مع Redis sessions وlogin throttling اختياريين للإنتاج.
+- `security.py`: IAM وMFA وRBAC والجلسات وCSRF primitives، مع Redis sessions وlogin/request throttling موزعين للإنتاج.
 - `requirements-production.txt`: اعتماد Redis مثبت للإنتاج فقط؛ المعاينة تبقى بدون تبعيات.
 - `jobs.py` و`worker.py`: طوابير Redis Streams مع consumer groups وretry وdead-letter، وعامل منفصل للمهام الخلفية.
 - `config.py` و`scripts/validate_production_config.py`: بوابة fail-closed تمنع تشغيل production قبل OIDC وPostgreSQL وRedis وWAF.
