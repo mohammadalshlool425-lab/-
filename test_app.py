@@ -112,6 +112,8 @@ class AppSecurityTests(unittest.TestCase):
             rendered = app.remove_marked_blocks(app.HTML, app.ADMIN_UI_START, app.ADMIN_UI_END)
             self.assertNotIn('id="admin-view"', rendered)
             self.assertNotIn('لوحة المدير العام', rendered)
+            rendered_without_preview = app.remove_marked_blocks(app.HTML, app.PREVIEW_NOTICE_START, app.PREVIEW_NOTICE_END)
+            self.assertNotIn('وضع المعاينة:', rendered_without_preview)
         finally:
             if original_env is None:
                 os.environ.pop('APP_ENV', None)

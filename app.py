@@ -209,6 +209,8 @@ HTML = r'''<!doctype html>
 
     /* Main layout */
     .main-content { min-width: 0; padding: 27px 37px 42px; overflow: hidden; }
+    .preview-notice { display: flex; align-items: center; gap: 9px; margin: -8px 0 18px; padding: 10px 13px; border: 1px solid #f2d8a9; border-radius: 12px; background: #fff8e9; color: #7e5b22; font-size: 11px; line-height: 1.6; }
+    .preview-notice .icon { width: 16px; height: 16px; flex: 0 0 auto; color: #b57a23; }
     .topbar { min-height: 44px; display: flex; align-items: center; justify-content: space-between; gap: 18px; margin-bottom: 27px; }
     .date-label { color: var(--muted); font-size: 11px; font-weight: 700; margin: 0 0 4px; }
     .date-label strong { color: var(--ink-2); font-weight: 800; }
@@ -906,6 +908,9 @@ HTML = r'''<!doctype html>
     </aside>
 
     <main class="main-content" id="mainContent" tabindex="-1">
+      <!-- PREVIEW_NOTICE_START -->
+      <div class="preview-notice" role="status"><span class="icon" data-icon="info"></span><span>وضع المعاينة: يمكنك استكشاف تجربة عزوتك الأردنية، لكن لا يتم إنشاء حجوزات أو دفعات أو حسابات فعلية بعد.</span></div>
+      <!-- PREVIEW_NOTICE_END -->
       <header class="topbar">
         <div class="date-label">الإثنين، <strong>٢٦ أكتوبر ٢٠٢٦</strong></div>
         <div class="topbar-actions">
@@ -1510,6 +1515,8 @@ RATE_LIMIT_WINDOW = 60
 RATE_LIMIT_MAX_REQUESTS = 180
 ADMIN_UI_START = '<!-- ADMIN_UI_START -->'
 ADMIN_UI_END = '<!-- ADMIN_UI_END -->'
+PREVIEW_NOTICE_START = '<!-- PREVIEW_NOTICE_START -->'
+PREVIEW_NOTICE_END = '<!-- PREVIEW_NOTICE_END -->'
 _rate_buckets = defaultdict(deque)
 _rate_lock = threading.Lock()
 API_BODY_LIMIT = 16 * 1024
@@ -1884,6 +1891,8 @@ class AppHandler(BaseHTTPRequestHandler):
         rendered = HTML.replace('__CSP_NONCE__', nonce)
         if not self._admin_ui_enabled():
             rendered = remove_marked_blocks(rendered, ADMIN_UI_START, ADMIN_UI_END)
+        if os.environ.get('APP_ENV', 'development').lower() == 'production':
+            rendered = remove_marked_blocks(rendered, PREVIEW_NOTICE_START, PREVIEW_NOTICE_END)
         self._send_payload(rendered.encode('utf-8'), 'text/html; charset=utf-8', 200, include_body, nonce=nonce)
 
     def do_GET(self):
