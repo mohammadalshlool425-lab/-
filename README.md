@@ -1,6 +1,6 @@
 # عزوتك | خدماتك أقرب
 
-إصدار النموذج الحالي: `0.8.0`
+إصدار النموذج الحالي: `0.8.1`
 
 نموذج تفاعلي RTL لمنصة خدمات منزلية أردنية، مع واجهة العميل ولوحة المدير العام ومركز حماية تشغيلي.
 
@@ -51,10 +51,11 @@ python -m py_compile app.py
 - `security.py`: IAM وMFA وRBAC والجلسات وCSRF primitives، مع Redis sessions وlogin throttling اختياريين للإنتاج.
 - `requirements-production.txt`: اعتماد Redis مثبت للإنتاج فقط؛ المعاينة تبقى بدون تبعيات.
 - `jobs.py` و`worker.py`: طوابير Redis Streams مع consumer groups وretry وdead-letter، وعامل منفصل للمهام الخلفية.
+- `config.py` و`scripts/validate_production_config.py`: بوابة fail-closed تمنع تشغيل production قبل OIDC وPostgreSQL وRedis وWAF.
 - `scripts/bootstrap_iam.py`: إنشاء hash كلمة المرور وTOTP secret دون حفظ الأسرار في المستودع.
 - `deploy/`: قوالب Reverse Proxy وTLS وWAF edge لـ Nginx وCaddy، ووحدة systemd غير root.
 - `.env.example`: أسماء إعدادات IAM بدون أسرار حقيقية.
-- `test_app.py` و`test_security.py` و`test_schema.py`: اختبارات الرؤوس، CSP nonce، IAM، MFA، الجلسات، المسارات ومخطط قاعدة البيانات.
+- `test_app.py` و`test_security.py` و`test_schema.py` و`test_config.py` و`test_jobs.py` و`test_worker.py`: اختبارات الرؤوس، CSP nonce، IAM، MFA، الجلسات، الإعداد الإنتاجي، الطوابير والعامل ومخطط قاعدة البيانات.
 - `BRANDING.md`: خيارات اسم المنصة ومعايير الاختيار داخل السوق الأردني.
 - `ROADMAP.md`: مراحل نقل النموذج إلى IAM/OIDC وبيانات وتشغيل إنتاجي.
 - `db/migrations/0001_initial.sql`: مخطط PostgreSQL للحجوزات والمزودين والمدفوعات والتدقيق.

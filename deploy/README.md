@@ -65,9 +65,14 @@ export ADMIN_UI_ENABLED=1
 
 ## فحص الإعداد قبل التفعيل
 
+في production، ترفض خدمة systemd البدء إذا لم يكتمل OIDC وPostgreSQL وRedis وWAF. شغّل الفحص يدوياً بعد تحميل ملف البيئة:
+
 ```bash
+python scripts/validate_production_config.py --json
 python -m unittest -v
-python -m py_compile app.py security.py
+python -m py_compile app.py security.py jobs.py worker.py
 nginx -t                 # عند استخدام Nginx
 caddy validate --config deploy/Caddyfile  # عند استخدام Caddy
 ```
+
+الفحص لا يحتاج إلى أسرار داخل المستودع ولا يطبع قيم المتغيرات الحساسة. إذا كان `APP_ENV` غير production، يمر الفحص حتى تبقى المعاينة المحلية ممكنة.

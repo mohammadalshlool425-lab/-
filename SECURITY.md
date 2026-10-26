@@ -34,6 +34,7 @@
 - الجلسات داخل الذاكرة افتراضياً للمعاينة، ويتوفر RedisSessionStore عبر `SESSION_STORE=redis` للنسخ المتعددة؛ استخدم `rediss://` وشهادة موثوقة في الإنتاج.
 - يتوفر RedisLoginThrottle عبر `RATE_LIMIT_STORE=redis`، ويستخدم مفاتيح مجزأة وعدادات ذرية وTTL للقفل؛ لا يعتمد على عدادات ذاكرة نسخة واحدة في الإنتاج.
 - طوابير المهام تستخدم Redis Streams وconsumer groups وacknowledgement وdead-letter؛ لا تُحفظ أسرار مزودي الدفع أو الإشعارات داخل payloads.
+- `validate_production_config.py` يرفض تشغيل الخدمة في production عند غياب OIDC أو PostgreSQL أو Redis/TLS أو WAF managed، ولا يطبع قيم الأسرار.
 
 ## قبل الإطلاق الفعلي
 

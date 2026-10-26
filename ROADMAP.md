@@ -35,7 +35,7 @@
 - مراجعة RBAC على مستوى المورد، وليس الدور العام فقط.
 - منع local IAM في production بعد إكمال انتقال OIDC.
 
-**تحتاج:** نطاقاً وOIDC issuer/client من بيئة التشغيل. لا ترسل client secret في المحادثة.
+**تحتاج:** نطاقاً وOIDC issuer/client من بيئة التشغيل. لا ترسل client secret في المحادثة. توجد الآن بوابة إعداد fail-closed تمنع تشغيل production قبل اكتمال هذه القيم، لكن تنفيذ Authorization Code/PKCE نفسه لن يُفعّل قبل اعتماد الـ issuer.
 
 ## المرحلة 3 — البيانات والعمليات الحقيقية
 
