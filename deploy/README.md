@@ -104,6 +104,7 @@ export ADMIN_UI_ENABLED=1
 python scripts/validate_production_config.py --json
 python scripts/migrate.py --dry-run
 python scripts/load_smoke.py --url http://127.0.0.1:8000/health --requests 100 --concurrency 10
+python scripts/dast_smoke.py --base-url http://127.0.0.1:8000
 python -m unittest -v
 python -m py_compile app.py security.py jobs.py worker.py
 nginx -t                 # عند استخدام Nginx

@@ -26,7 +26,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
       - name: Compile source
-        run: python -m py_compile app.py security.py jobs.py worker.py config.py oidc.py repository.py scripts/bootstrap_iam.py scripts/load_smoke.py scripts/migrate.py scripts/validate_production_config.py
+        run: python -m py_compile app.py security.py jobs.py worker.py config.py oidc.py repository.py scripts/bootstrap_iam.py scripts/dast_smoke.py scripts/load_smoke.py scripts/migrate.py scripts/validate_production_config.py
       - name: Run tests
         run: python -m unittest -v
       - name: Check whitespace
@@ -80,6 +80,26 @@ jobs:
         run: bandit -q -r app.py security.py jobs.py worker.py config.py oidc.py repository.py scripts
       - name: Audit production dependencies
         run: pip-audit --requirement requirements-production.txt
+
+  dast-smoke:
+    name: Local DAST smoke checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.1
+      - name: Set up Python
+        uses: actions/setup-python@v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Start preview server
+        run: |
+          BIND_HOST=127.0.0.1 APP_ENV=development python app.py > /tmp/ezwatek-dast.log 2>&1 &
+          echo $! > /tmp/ezwatek-dast.pid
+      - name: Run DAST smoke checks
+        run: python scripts/dast_smoke.py --base-url http://127.0.0.1:8000
+      - name: Stop preview server
+        if: always()
+        run: kill "$(cat /tmp/ezwatek-dast.pid)" 2>/dev/null || true
 
   codeql:
     name: CodeQL Python analysis
