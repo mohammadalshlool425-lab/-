@@ -61,7 +61,7 @@ class AppSecurityTests(unittest.TestCase):
     def test_auth_status_does_not_create_a_session(self):
         response = self.fetch('/api/auth/status')
         self.assertEqual(response.status, 200)
-        self.assertEqual(response.read().decode('utf-8'), '{"authenticated":false}')
+        self.assertEqual(response.read().decode('utf-8'), '{"authenticated":false,"auth_mode":"local-preview"}')
 
     def test_admin_api_requires_a_session(self):
         with self.assertRaises(HTTPError) as caught:

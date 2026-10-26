@@ -64,4 +64,4 @@ python -m py_compile app.py security.py jobs.py worker.py config.py oidc.py scri
 - `.github/workflows/quality-security.yml`: اختبارات CI وSAST وSCA وCodeQL وDependency Review وبناء صورة non-root.
 - `.github/dependabot.yml`: تحديثات أسبوعية لإجراءات GitHub.
 
-> واجهة الحجز ولوحة الإدارة في المعاينة تحافظان على تجربة عزوتك الأردنية، لكن زر التأكيد لا ينشئ حجزاً أو دفعة فعلية بعد. في production تُستخدم APIs وقاعدة البيانات ومزودات الدفع بعد اكتمال الربط والتحقق.
+> واجهة الحجز ولوحة الإدارة في المعاينة تحافظان على تجربة عزوتك الأردنية، لكن زر التأكيد لا ينشئ حجزاً أو دفعة فعلية بعد. في production تُستخدم APIs وقاعدة البيانات ومزودات الدفع بعد اكتمال الربط والتحقق. وعند تفعيل OIDC، يبدأ دخول العميل مسار Keycloak الحقيقي ولا يسقط إلى دخول محلي وهمي.

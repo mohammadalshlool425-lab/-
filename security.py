@@ -39,6 +39,12 @@ DIGITS_RE = re.compile(r"^[0-9]{6}$")
 
 
 ROLE_PERMISSIONS = {
+    "customer": frozenset({
+        "orders:create",
+        "orders:read",
+        "payments:read",
+        "reviews:create",
+    }),
     "owner": frozenset({
         "admin:read",
         "admin:write",

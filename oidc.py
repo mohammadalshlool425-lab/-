@@ -201,7 +201,7 @@ class OIDCClient:
         _https_endpoint(issuer, "issuer")
         _https_endpoint(redirect_uri, "redirect URI")
         role_map = []
-        for item in os.environ.get("OIDC_ROLE_MAP", "owner=owner,ops_manager=ops_manager,security_auditor=security_auditor,support_lead=support_lead").split(","):
+        for item in os.environ.get("OIDC_ROLE_MAP", "customer=customer,owner=owner,ops_manager=ops_manager,security_auditor=security_auditor,support_lead=support_lead").split(","):
             if "=" not in item:
                 continue
             app_role, provider_group = (part.strip() for part in item.split("=", 1))

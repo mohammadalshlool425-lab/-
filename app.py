@@ -1478,15 +1478,26 @@ HTML = r'''<!doctype html>
     function openAuth() { openOverlay('authModal'); setTimeout(() => $('#phoneInput').focus(), 120); }
     $('#profileButton').addEventListener('click', openAuth);
     $('#profileButton').addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openAuth(); } });
-    $('#authContinue').addEventListener('click', () => {
+    async function continueCustomerAuth() {
       const phone = $('#phoneInput').value.replace(/[^0-9]/g, '');
       const validJordanPhone = /^7[0-9]{8}$/.test(phone) || /^07[0-9]{8}$/.test(phone);
       $('#phoneError').hidden = validJordanPhone;
       $('#phoneField').classList.toggle('invalid', !validJordanPhone);
       if (!validJordanPhone) { $('#phoneInput').focus(); return; }
+      try {
+        const response = await fetch('/api/auth/status', { credentials: 'same-origin' });
+        const status = await response.json();
+        if (status.auth_mode === 'oidc') {
+          window.location.assign('/auth/login');
+          return;
+        }
+      } catch (errorValue) {
+        // Keep the development preview explicit when the status probe cannot complete.
+      }
       closeOverlay('authModal');
       showToast('هذه معاينة — لم يتم إنشاء حساب فعلي أو إرسال رمز تحقق بعد');
-    });
+    }
+    $('#authContinue').addEventListener('click', continueCustomerAuth);
     $('#phoneInput').addEventListener('input', () => { $('#phoneError').hidden = true; $('#phoneField').classList.remove('invalid'); });
     $('#guestExplore').addEventListener('click', () => { closeOverlay('authModal'); openIntro(); });
 
@@ -1772,7 +1783,10 @@ class AppHandler(BaseHTTPRequestHandler):
 
         if path == '/api/auth/status' and method in {'GET', 'HEAD'}:
             session = self._current_session()
-            payload = {'authenticated': bool(session)}
+            payload = {
+                'authenticated': bool(session),
+                'auth_mode': 'oidc' if os.environ.get('IAM_MODE', 'local').lower() == 'oidc' else 'local-preview',
+            }
             if session:
                 payload.update({
                     'user': session.identity.username,
