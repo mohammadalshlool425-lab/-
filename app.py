@@ -17,11 +17,11 @@ HTML = r'''<!doctype html>
   <meta name="format-detection" content="telephone=no" />
   <meta name="theme-color" content="#103b3e" />
   <meta name="color-scheme" content="light" />
-  <meta name="application-name" content="سَنَد" />
+  <meta name="application-name" content="عزوتك" />
   <meta name="description" content="منصة أردنية لحجز الخدمات المنزلية الموثوقة في عمّان وإربد والزرقاء." />
   <link rel="manifest" href="/manifest.webmanifest" />
   <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
-  <title>سَنَد | خدماتك أقرب</title>
+  <title>عزوتك | خدماتك أقرب</title>
   <style nonce="__CSP_NONCE__">
     :root {
       --ink: #153d40;
@@ -835,9 +835,9 @@ HTML = r'''<!doctype html>
   <a class="skip-link" href="#mainContent">تجاوز إلى المحتوى الرئيسي</a>
   <div class="app-shell">
     <aside class="sidebar" aria-label="القائمة الرئيسية">
-      <a class="brand" href="#" data-view="home" aria-label="سَنَد - الرئيسية">
+      <a class="brand" href="#" data-view="home" aria-label="عزوتك - الرئيسية">
         <span class="brand-mark"><span class="icon" data-icon="sparkles"></span></span>
-        <span><span class="brand-name">سَنَد</span><span class="brand-sub">خدماتك أقرب</span></span>
+        <span><span class="brand-name">عزوتك</span><span class="brand-sub">عزوة من أهل البلد</span></span>
       </a>
 
       <button class="location-switcher" type="button" id="locationButton">
@@ -864,6 +864,7 @@ HTML = r'''<!doctype html>
           <button class="nav-item" data-view="settings" type="button"><span class="icon" data-icon="settings"></span><span>الإعدادات</span></button>
         </div>
       </nav>
+      <!-- ADMIN_UI_START -->
       <div class="side-divider"></div>
       <nav>
         <div class="nav-label">الإدارة</div>
@@ -871,11 +872,12 @@ HTML = r'''<!doctype html>
           <button class="nav-item admin-access" data-view="admin" type="button"><span class="icon" data-icon="shield"></span><span>لوحة المدير العام</span><span class="admin-chip">ADMIN</span></button>
         </div>
       </nav>
+      <!-- ADMIN_UI_END -->
       <div class="sidebar-spacer"></div>
       <div class="support-card">
         <div class="mini-icon"><span class="icon" data-icon="headphones"></span></div>
         <strong>محتاج مساعدة؟</strong>
-        <p>فريق سَنَد معك من ٨ صباحاً حتى ١٠ مساءً.</p>
+        <p>فريق عزوتك معك من ٨ صباحاً حتى ١٠ مساءً.</p>
         <button type="button" data-action="help">تواصل معنا ←</button>
       </div>
       <div class="profile-mini">
@@ -906,10 +908,10 @@ HTML = r'''<!doctype html>
 
         <article class="hero-card">
           <div class="hero-content">
-            <div class="hero-eyebrow"><span class="icon" data-icon="sparkles"></span> خدمات الأردن، أقرب لك</div>
+            <div class="hero-eyebrow"><span class="icon" data-icon="sparkles"></span> عزوة من أهل الأردن</div>
             <h2>خليها علينا، وخلّي وقتك إلك.</h2>
             <p>من صيانة البيت لتنظيفه ونقل أغراضك — بنوصلك بمزوّدين موثوقين في عمّان وكل الأردن.</p>
-            <div class="hero-actions"><button class="primary-button" type="button" data-book="تنظيف وتعقيم">احجز خدمة الآن <span class="icon" data-icon="arrow-left"></span></button><button class="hero-link" type="button" data-action="intro">كيف يعمل سَنَد؟</button></div>
+            <div class="hero-actions"><button class="primary-button" type="button" data-book="تنظيف وتعقيم">احجز خدمة الآن <span class="icon" data-icon="arrow-left"></span></button><button class="hero-link" type="button" data-action="intro">كيف بتشتغل عزوتك؟</button></div>
           </div>
           <div class="hero-float"><span class="float-check"><span class="icon" data-icon="check"></span></span> مزوّدون موثّقون</div>
           <div class="hero-stat"><strong>+ ٤,٨٠٠</strong><span>طلب تم إنجازه بأمان</span></div>
@@ -988,7 +990,7 @@ HTML = r'''<!doctype html>
 
       <!-- Services -->
       <section class="view" id="services-view" data-page="services">
-        <div class="page-title"><div><h1>كل الخدمات</h1><p>اختاري الخدمة المناسبة وخلّي الباقي علينا.</p></div><button class="ghost-button" type="button" data-action="intro"><span class="icon" data-icon="sparkles"></span> كيف يعمل سَنَد؟</button></div>
+        <div class="page-title"><div><h1>كل الخدمات</h1><p>اختاري الخدمة المناسبة وخلّي الباقي علينا.</p></div><button class="ghost-button" type="button" data-action="intro"><span class="icon" data-icon="sparkles"></span> كيف بتشتغل عزوتك؟</button></div>
         <div class="search-row"><div class="search-box"><span class="icon" data-icon="search"></span><input class="service-page-search" type="search" placeholder="ابحثي عن خدمة..." autocomplete="off" /></div><button class="filter-button" type="button" data-action="filter"><span class="icon" data-icon="sliders"></span></button></div>
         <div class="all-services-grid">
           <button class="service-card large-service" type="button" data-service-card data-service="صيانة منزلية" data-search="صيانة منزلية تصليح"><span class="service-icon green"><span class="icon" data-icon="wrench"></span></span><strong>صيانة منزلية</strong><small>سباكة، نجارة، أجهزة</small></button>
@@ -1018,11 +1020,12 @@ HTML = r'''<!doctype html>
         <div class="payment-layout"><article class="payment-card"><span class="card-label">بطاقة الدفع الأساسية</span><div class="card-number">••••  4821</div><div class="card-bottom"><span>LIAN AHMAD</span><strong>VISA</strong></div></article><div class="payment-methods"><div class="method-row"><span class="method-icon"><span class="icon" data-icon="credit-card"></span></span><span><strong>بطاقة بنكية</strong><small>Visa تنتهي بـ ٤٨٢١</small></span><span class="icon" data-icon="check"></span></div><div class="method-row"><span class="method-icon cliq"><span class="icon" data-icon="zap"></span></span><span><strong>CliQ</strong><small>الدفع الفوري من بنكك</small></span><span class="icon" data-icon="chevron-left"></span></div><div class="method-row"><span class="method-icon cash"><span class="icon" data-icon="hand"></span></span><span><strong>الدفع عند الإنجاز</strong><small>كاش أو بطاقة للمزوّد</small></span><span class="icon" data-icon="chevron-left"></span></div></div></div>
       </section>
 
+      <!-- ADMIN_UI_START -->
       <!-- General manager command center -->
       <section class="view admin-view" id="admin-view" data-page="admin">
         <div class="admin-heading">
           <div>
-            <div class="admin-eyebrow"><span class="icon" data-icon="shield"></span> مركز القيادة · إدارة سَنَد</div>
+            <div class="admin-eyebrow"><span class="icon" data-icon="shield"></span> مركز القيادة · إدارة عزوتك</div>
             <h1>صباح العمليات، <strong>أستاذ سامر</strong></h1>
             <p>صورة موحّدة للطلبات، الأداء، والمخاطر — بقرار أسرع وأوضح.</p>
           </div>
@@ -1076,6 +1079,7 @@ HTML = r'''<!doctype html>
           <article class="admin-panel"><div class="admin-panel-head"><div><h3>التغطية التشغيلية</h3><p>توزيع الطلبات حسب المدينة</p></div><span class="admin-live">+ ٨.٢٪ هذا الأسبوع</span></div><div class="coverage-row"><span>عمّان</span><div class="coverage-track"><div class="coverage-fill w68"></div></div><strong>٦٨٪</strong></div><div class="coverage-row"><span>إربد</span><div class="coverage-track"><div class="coverage-fill w19"></div></div><strong>١٩٪</strong></div><div class="coverage-row"><span>الزرقاء</span><div class="coverage-track"><div class="coverage-fill w9"></div></div><strong>٩٪</strong></div><div class="coverage-row"><span>العقبة</span><div class="coverage-track"><div class="coverage-fill w4"></div></div><strong>٤٪</strong></div></article>
         </div>
       </section>
+      <!-- ADMIN_UI_END -->
 
       <!-- Settings -->
       <section class="view" id="settings-view" data-page="settings">
@@ -1090,7 +1094,9 @@ HTML = r'''<!doctype html>
       <button class="nav-item" data-view="services" type="button"><span class="icon" data-icon="grid"></span><span>الخدمات</span></button>
       <button class="nav-item" data-view="favorites" type="button"><span class="icon" data-icon="heart"></span><span>المفضلة</span></button>
       <button class="nav-item" data-view="settings" type="button"><span class="icon" data-icon="settings"></span><span>حسابي</span></button>
+      <!-- ADMIN_UI_START -->
       <button class="nav-item admin-access" data-view="admin" type="button"><span class="icon" data-icon="shield"></span><span>إدارة</span></button>
+      <!-- ADMIN_UI_END -->
     </nav>
   </div>
 
@@ -1110,7 +1116,7 @@ HTML = r'''<!doctype html>
         <div class="confirm-view" id="confirmView">
           <div class="booking-service-line"><span class="service-icon green"><span class="icon" data-icon="check"></span></span><span class="booking-service-copy"><small>راجعي تفاصيل طلبك</small><strong id="confirmService">صيانة منزلية</strong></span></div>
           <div class="confirm-list"><div class="confirm-item"><span>العنوان</span><strong id="confirmLocation">الدوار السابع، عمّان</strong></div><div class="confirm-item"><span>الوقت</span><strong id="confirmTime">اليوم، من ٥ - ٧ م</strong></div><div class="confirm-item"><span>التكلفة التقديرية</span><strong id="confirmPrice">١٢ د.أ</strong></div></div>
-          <div class="safe-note"><span class="icon" data-icon="lock"></span> بياناتك وطلبك محميان مع سَنَد.</div>
+          <div class="safe-note"><span class="icon" data-icon="lock"></span> بياناتك وطلبك محميان مع عزوتك.</div>
           <button class="primary-button full-button" type="button" id="confirmBooking">تأكيد الطلب <span class="icon" data-icon="check"></span></button>
           <button class="back-link" type="button" id="backToBooking">← تعديل التفاصيل</button>
         </div>
@@ -1144,6 +1150,7 @@ HTML = r'''<!doctype html>
     </div>
   </div>
 
+  <!-- ADMIN_UI_START -->
   <!-- Security operations modal -->
   <div class="overlay" id="securityModal" role="dialog" aria-modal="true" aria-labelledby="securityModalTitle">
     <div class="modal-card security-modal">
@@ -1151,9 +1158,10 @@ HTML = r'''<!doctype html>
       <div class="security-modal-body"><div class="security-modal-intro"><div class="security-shield"><span class="icon" data-icon="shield"></span></div><div><strong>الحالة العامة: محمية</strong><span>لا توجد حوادث حرجة مفتوحة · آخر تقييم ٢٦ أكتوبر ٢٠٢٦</span></div></div><div class="security-detail-list"><div class="security-detail"><strong>٩٨.٤٪</strong><span class="secure-value">تغطية المصادقة متعددة العوامل</span></div><div class="security-detail"><strong>٢٧</strong><span>محاولات مشبوهة محظورة اليوم</span></div><div class="security-detail"><strong>١٢ دقيقة</strong><span>منذ آخر نسخة احتياطية مشفّرة</span></div><div class="security-detail"><strong>٠</strong><span class="secure-value">ثغرات حرجة غير معالجة</span></div></div><div class="security-modal-note"><strong>ملاحظة تشغيلية:</strong> هذه الواجهة جزء من طبقات الحماية ولا تستبدل جدار حماية تطبيقات الويب، إدارة الهوية، مراقبة السجلات، واختبارات الاختراق في بيئة الإنتاج.</div><div class="security-modal-actions"><button class="primary-button" type="button" id="reviewSessions"><span class="icon" data-icon="lock"></span> مراجعة الجلسات</button><button class="ghost-button" type="button" id="rotateKeys"><span class="icon" data-icon="settings"></span> طلب تدوير المفاتيح</button></div></div>
     </div>
   </div>
+  <!-- ADMIN_UI_END -->
 
   <!-- Notifications -->
-  <div class="notification-panel" id="notificationPanel" aria-label="الإشعارات"><div class="notification-head"><strong>الإشعارات</strong><button type="button" id="markRead">تحديد الكل كمقروء</button></div><div class="notification-item unread"><span class="notification-icon"><span class="icon" data-icon="truck"></span></span><span class="notification-copy"><strong>الفني بالطريق إليك 🚗</strong><p>يوسف من «الفني الماهر» سيصل خلال ١٢ دقيقة.</p><time>منذ ٣ دقائق</time></span></div><div class="notification-item unread"><span class="notification-icon orange"><span class="icon" data-icon="star"></span></span><span class="notification-copy"><strong>رأيك يهمنا ⭐</strong><p>كيف كانت تجربتك مع سَنَد اليوم؟ قيّمي الخدمة الآن.</p><time>منذ ساعة</time></span></div><div class="notification-item"><span class="notification-icon"><span class="icon" data-icon="gift"></span></span><span class="notification-copy"><strong>عرض خاص لك</strong><p>خصم ١٥٪ على أول طلب تنظيف هذا الشهر.</p><time>أمس</time></span></div></div>
+  <div class="notification-panel" id="notificationPanel" aria-label="الإشعارات"><div class="notification-head"><strong>الإشعارات</strong><button type="button" id="markRead">تحديد الكل كمقروء</button></div><div class="notification-item unread"><span class="notification-icon"><span class="icon" data-icon="truck"></span></span><span class="notification-copy"><strong>الفني بالطريق إليك 🚗</strong><p>يوسف من «الفني الماهر» سيصل خلال ١٢ دقيقة.</p><time>منذ ٣ دقائق</time></span></div><div class="notification-item unread"><span class="notification-icon orange"><span class="icon" data-icon="star"></span></span><span class="notification-copy"><strong>رأيك يهمنا ⭐</strong><p>كيف كانت تجربتك مع عزوتك اليوم؟ قيّمي الخدمة الآن.</p><time>منذ ساعة</time></span></div><div class="notification-item"><span class="notification-icon"><span class="icon" data-icon="gift"></span></span><span class="notification-copy"><strong>عرض خاص لك</strong><p>خصم ١٥٪ على أول طلب تنظيف هذا الشهر.</p><time>أمس</time></span></div></div>
 
   <div class="toast" id="toast" role="status" aria-live="polite"><span class="icon" data-icon="check"></span><span id="toastText">تم حفظ التغييرات</span></div>
 
@@ -1346,7 +1354,7 @@ HTML = r'''<!doctype html>
       const csv = '\ufeff' + rows.map(row => row.map(value => '"' + value.replaceAll('"', '""') + '"').join(',')).join('\n');
       const link = document.createElement('a');
       link.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }));
-      link.download = 'sanad-operations-report.csv';
+      link.download = 'ezwatek-operations-report.csv';
       link.click();
       URL.revokeObjectURL(link.href);
       showToast('تم تجهيز تقرير العمليات للتنزيل');
@@ -1365,7 +1373,7 @@ HTML = r'''<!doctype html>
     $$('[data-action]').forEach(button => button.addEventListener('click', () => {
       const action = button.dataset.action;
       if (action === 'intro') openIntro();
-      if (action === 'help') showToast('فريق سَنَد جاهز يساعدك — ٠٦ ٥٥٥ ١٢٣٤');
+      if (action === 'help') showToast('فريق عزوتك جاهز يساعدك — ٠٦ ٥٥٥ ١٢٣٤');
       if (action === 'track') { switchView('orders'); showToast('تم فتح تفاصيل الطلب'); }
       if (action === 'rate') showToast('شكراً! نافذة التقييم جاهزة لك ⭐');
       if (action === 'favorite') { button.classList.toggle('selected'); showToast(button.classList.contains('selected') ? 'تمت الإضافة للمفضلة' : 'تمت الإزالة من المفضلة'); }
@@ -1391,8 +1399,10 @@ HTML = r'''<!doctype html>
       const selected = filter.dataset.opsFilter;
       $$('.operations-table tbody tr').forEach(row => { row.hidden = selected === 'pending' ? !row.innerText.includes('بانتظار') : selected === 'active' ? !row.innerText.includes('التنفيذ') && !row.innerText.includes('التعيين') && !row.innerText.includes('وصل') : false; });
     }));
-    $('#reviewSessions').addEventListener('click', () => { closeOverlay('securityModal'); showToast('تم فتح مراجعة الجلسات الإدارية الآمنة'); });
-    $('#rotateKeys').addEventListener('click', () => { closeOverlay('securityModal'); showToast('تم إنشاء طلب موافقة لتدوير المفاتيح'); });
+    const reviewSessionsButton = $('#reviewSessions');
+    if (reviewSessionsButton) reviewSessionsButton.addEventListener('click', () => { closeOverlay('securityModal'); showToast('تم فتح مراجعة الجلسات الإدارية الآمنة'); });
+    const rotateKeysButton = $('#rotateKeys');
+    if (rotateKeysButton) rotateKeysButton.addEventListener('click', () => { closeOverlay('securityModal'); showToast('تم إنشاء طلب موافقة لتدوير المفاتيح'); });
 
     function openAuth() { openOverlay('authModal'); setTimeout(() => $('#phoneInput').focus(), 120); }
     $('#profileButton').addEventListener('click', openAuth);
@@ -1404,7 +1414,7 @@ HTML = r'''<!doctype html>
       $('#phoneField').classList.toggle('invalid', !validJordanPhone);
       if (!validJordanPhone) { $('#phoneInput').focus(); return; }
       closeOverlay('authModal');
-      showToast('أهلاً فيك مع سَنَد — تم تجهيز حسابك');
+      showToast('أهلاً فيك مع عزوتك — تم تجهيز حسابك');
     });
     $('#phoneInput').addEventListener('input', () => { $('#phoneError').hidden = true; $('#phoneField').classList.remove('invalid'); });
     $('#guestExplore').addEventListener('click', () => { closeOverlay('authModal'); openIntro(); });
@@ -1428,12 +1438,25 @@ STATIC_ASSETS = {
 }
 
 
-APP_VERSION = '0.3.0'
+APP_VERSION = '0.4.0'
 MAX_PATH_LENGTH = 2048
 RATE_LIMIT_WINDOW = 60
 RATE_LIMIT_MAX_REQUESTS = 180
+ADMIN_UI_START = '<!-- ADMIN_UI_START -->'
+ADMIN_UI_END = '<!-- ADMIN_UI_END -->'
 _rate_buckets = defaultdict(deque)
 _rate_lock = threading.Lock()
+
+
+def remove_marked_blocks(document, start_marker, end_marker):
+    """Remove all complete, server-controlled marker blocks without regex parsing."""
+    while start_marker in document:
+        start_index = document.find(start_marker)
+        end_index = document.find(end_marker, start_index + len(start_marker))
+        if end_index == -1:
+            break
+        document = document[:start_index] + document[end_index + len(end_marker):]
+    return document
 
 
 class AppHandler(BaseHTTPRequestHandler):
@@ -1443,7 +1466,7 @@ class AppHandler(BaseHTTPRequestHandler):
     provider. This handler intentionally exposes no state-changing HTTP API.
     """
 
-    server_version = 'Sanad'
+    server_version = 'Ezwatek'
     sys_version = ''
 
     def _client_ip(self):
@@ -1525,6 +1548,11 @@ class AppHandler(BaseHTTPRequestHandler):
         body = json.dumps(payload, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
         self._send_payload(body, 'application/json; charset=utf-8', status, include_body, extra_headers)
 
+    @staticmethod
+    def _admin_ui_enabled():
+        production = os.environ.get('APP_ENV', 'development').lower() == 'production'
+        return not production or os.environ.get('ADMIN_UI_ENABLED', '0') == '1'
+
     def _serve(self, include_body=True):
         if not self._rate_allowed():
             self._send_json({'error': 'too_many_requests', 'message': 'تم تجاوز عدد الطلبات المسموح مؤقتاً.'}, 429, include_body, {'Retry-After': str(RATE_LIMIT_WINDOW)})
@@ -1534,12 +1562,12 @@ class AppHandler(BaseHTTPRequestHandler):
             self._send_json({'error': 'bad_request', 'message': 'طلب غير صالح.'}, 400, include_body)
             return
         if path == '/health':
-            self._send_json({'status': 'ok', 'app': 'sanad', 'version': APP_VERSION, 'security': 'headers-enabled'}, 200, include_body)
+            self._send_json({'status': 'ok', 'app': 'ezwatek', 'version': APP_VERSION, 'security': 'headers-enabled'}, 200, include_body)
             return
         if path == '/ready':
             assets_ready = all(file_path.is_file() for file_path, _ in STATIC_ASSETS.values())
             status = 200 if assets_ready else 503
-            self._send_json({'status': 'ready' if assets_ready else 'not_ready', 'app': 'sanad', 'version': APP_VERSION}, status, include_body)
+            self._send_json({'status': 'ready' if assets_ready else 'not_ready', 'app': 'ezwatek', 'version': APP_VERSION}, status, include_body)
             return
         asset = STATIC_ASSETS.get(path)
         if asset:
@@ -1556,6 +1584,8 @@ class AppHandler(BaseHTTPRequestHandler):
             return
         nonce = secrets.token_urlsafe(18)
         rendered = HTML.replace('__CSP_NONCE__', nonce)
+        if not self._admin_ui_enabled():
+            rendered = remove_marked_blocks(rendered, ADMIN_UI_START, ADMIN_UI_END)
         self._send_payload(rendered.encode('utf-8'), 'text/html; charset=utf-8', 200, include_body, nonce=nonce)
 
     def do_GET(self):
@@ -1593,7 +1623,7 @@ class AppHandler(BaseHTTPRequestHandler):
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', '8000'))
     server = ThreadingHTTPServer(('0.0.0.0', port), AppHandler)
-    print(f'سَنَد is running on http://0.0.0.0:{port}')
+    print(f'عزوتك is running on http://0.0.0.0:{port}')
     try:
         server.serve_forever()
     except KeyboardInterrupt:

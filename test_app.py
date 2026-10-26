@@ -1,3 +1,4 @@
+import os
 import re
 import threading
 import unittest
@@ -39,7 +40,7 @@ class AppSecurityTests(unittest.TestCase):
     def test_security_headers_are_present(self):
         response = self.fetch('/health')
         self.assertEqual(response.status, 200)
-        self.assertIn('"version":"0.3.0"', response.read().decode('utf-8'))
+        self.assertIn('"version":"0.4.0"', response.read().decode('utf-8'))
         self.assertEqual(response.headers['X-Content-Type-Options'], 'nosniff')
         self.assertEqual(response.headers['Referrer-Policy'], 'no-referrer')
         self.assertEqual(response.headers['Cache-Control'], 'no-store, max-age=0')
@@ -54,7 +55,7 @@ class AppSecurityTests(unittest.TestCase):
         manifest = self.fetch('/manifest.webmanifest').read().decode('utf-8')
         favicon = self.fetch('/favicon.svg').read().decode('utf-8')
         robots = self.fetch('/robots.txt').read().decode('utf-8')
-        self.assertIn('سَنَد', manifest)
+        self.assertIn('عزوتك', manifest)
         self.assertIn('<svg', favicon)
         self.assertIn('Disallow: /', robots)
 
@@ -69,6 +70,25 @@ class AppSecurityTests(unittest.TestCase):
             self.fetch('/', method='POST')
         self.assertEqual(caught.exception.code, 405)
         self.assertEqual(caught.exception.headers['Allow'], 'GET, HEAD, OPTIONS')
+
+    def test_production_can_remove_public_admin_markup(self):
+        original_env = os.environ.get('APP_ENV')
+        original_flag = os.environ.get('ADMIN_UI_ENABLED')
+        try:
+            os.environ['APP_ENV'] = 'production'
+            os.environ.pop('ADMIN_UI_ENABLED', None)
+            rendered = app.remove_marked_blocks(app.HTML, app.ADMIN_UI_START, app.ADMIN_UI_END)
+            self.assertNotIn('id="admin-view"', rendered)
+            self.assertNotIn('لوحة المدير العام', rendered)
+        finally:
+            if original_env is None:
+                os.environ.pop('APP_ENV', None)
+            else:
+                os.environ['APP_ENV'] = original_env
+            if original_flag is None:
+                os.environ.pop('ADMIN_UI_ENABLED', None)
+            else:
+                os.environ['ADMIN_UI_ENABLED'] = original_flag
 
 
 if __name__ == '__main__':
