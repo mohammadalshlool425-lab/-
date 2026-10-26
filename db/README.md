@@ -18,6 +18,10 @@ psql "$DATABASE_URL" --set ON_ERROR_STOP=1 -f db/migrations/0001_initial.sql
 - مبالغ الدفع تخزّن كـ minor units بالدينار الأردني لتجنب أخطاء floating point.
 - `idempotency_key` مطلوب لمنع تكرار الحجوزات عند إعادة المحاولة.
 
+## Redis والجلسات
+
+عند تشغيل أكثر من نسخة من التطبيق ثبّت `requirements-production.txt` واضبط `SESSION_STORE=redis` و`REDIS_URL=rediss://...`. يجب أن يكون Redis خاصاً بالشبكة الداخلية، مع ACL لمستخدم التطبيق وTLS وحدود ذاكرة وسياسة انتهاء مفاتيح.
+
 ## قبل تفعيل الإنتاج
 
 1. أنشئ أدوار PostgreSQL منفصلة للـ migrations وruntime وreadonly reporting.

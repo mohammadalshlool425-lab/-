@@ -1,6 +1,6 @@
 # عزوتك | خدماتك أقرب
 
-إصدار النموذج الحالي: `0.6.0`
+إصدار النموذج الحالي: `0.7.0`
 
 نموذج تفاعلي RTL لمنصة خدمات منزلية أردنية، مع واجهة العميل ولوحة المدير العام ومركز حماية تشغيلي.
 
@@ -48,7 +48,8 @@ python -m py_compile app.py
 - `manifest.webmanifest`: تعريف قابلية التثبيت كتطبيق PWA.
 - `favicon.svg`: هوية عزوتك المصغّرة.
 - `SECURITY.md`: متطلبات الحماية قبل ربط بيانات حقيقية أو مدفوعات.
-- `security.py`: IAM وMFA وRBAC والجلسات وCSRF primitives بدون تبعيات خارجية.
+- `security.py`: IAM وMFA وRBAC والجلسات وCSRF primitives، مع Redis sessions اختيارية للإنتاج.
+- `requirements-production.txt`: اعتماد Redis مثبت للإنتاج فقط؛ المعاينة تبقى بدون تبعيات.
 - `scripts/bootstrap_iam.py`: إنشاء hash كلمة المرور وTOTP secret دون حفظ الأسرار في المستودع.
 - `deploy/`: قوالب Reverse Proxy وTLS وWAF edge لـ Nginx وCaddy، ووحدة systemd غير root.
 - `.env.example`: أسماء إعدادات IAM بدون أسرار حقيقية.

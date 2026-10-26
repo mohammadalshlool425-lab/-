@@ -2,10 +2,34 @@ import base64
 import os
 import unittest
 
-from security import AuditLog, IAMService, Identity, SessionStore, can, generate_totp_secret, hash_password, totp_code, verify_password, verify_totp
+from security import AuditLog, IAMService, Identity, RedisSessionStore, SessionStore, can, generate_totp_secret, hash_password, totp_code, verify_password, verify_totp
+
+
+class FakeRedis:
+    def __init__(self):
+        self.values = {}
+
+    def setex(self, key, ttl, value):
+        self.values[key] = value
+
+    def get(self, key):
+        return self.values.get(key)
+
+    def delete(self, key):
+        self.values.pop(key, None)
 
 
 class SecurityPrimitiveTests(unittest.TestCase):
+    def test_redis_sessions_round_trip_and_revoke(self):
+        store = RedisSessionStore(client=FakeRedis(), ttl_seconds=60)
+        identity = Identity('owner', ('owner',))
+        session = store.create(identity, now=100)
+        restored = store.get(session.token, now=101)
+        self.assertEqual(restored.identity.username, 'owner')
+        self.assertEqual(restored.csrf_token, session.csrf_token)
+        store.revoke(session.token)
+        self.assertIsNone(store.get(session.token, now=101))
+
     def test_audit_log_redacts_client_identity_and_bounds_details(self):
         audit = AuditLog(max_events=2)
         audit.record('test.event', actor='admin', client_ip='10.0.0.1')
@@ -34,6 +58,18 @@ class SecurityPrimitiveTests(unittest.TestCase):
 
     def test_totp_secrets_are_random(self):
         self.assertNotEqual(generate_totp_secret(), generate_totp_secret())
+
+    def test_unknown_session_store_fails_closed(self):
+        original = os.environ.get('SESSION_STORE')
+        try:
+            os.environ['SESSION_STORE'] = 'unknown'
+            with self.assertRaises(RuntimeError):
+                IAMService()
+        finally:
+            if original is None:
+                os.environ.pop('SESSION_STORE', None)
+            else:
+                os.environ['SESSION_STORE'] = original
 
     def test_invalid_role_configuration_fails_closed(self):
         secret = generate_totp_secret()

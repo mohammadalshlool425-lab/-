@@ -12,6 +12,7 @@ from dataclasses import dataclass
 import base64
 import binascii
 import hashlib
+import json
 import hmac
 import os
 import re
@@ -317,11 +318,93 @@ class SessionStore:
             self._sessions.pop(token, None)
 
 
+class RedisSessionStore:
+    """Redis-backed session store for multi-instance production deployments."""
+
+    def __init__(self, url: str | None = None, ttl_seconds: int = SESSION_TTL_SECONDS, client=None):
+        self.ttl_seconds = ttl_seconds
+        self.prefix = 'ezwatek:session:'
+        if client is not None:
+            self.client = client
+            return
+        if not url:
+            raise RuntimeError('REDIS_URL is required when SESSION_STORE=redis')
+        try:
+            import redis
+        except ImportError as error:
+            raise RuntimeError('Install requirements-production.txt for Redis sessions') from error
+        kwargs = {'decode_responses': True, 'socket_timeout': 3, 'health_check_interval': 30}
+        if url.startswith('rediss://'):
+            kwargs['ssl_cert_reqs'] = 'required'
+        self.client = redis.Redis.from_url(url, **kwargs)
+        self.client.ping()
+
+    def _key(self, token: str) -> str:
+        return self.prefix + token
+
+    @staticmethod
+    def _encode(session: Session) -> str:
+        return json.dumps({
+            'token': session.token,
+            'csrf_token': session.csrf_token,
+            'username': session.identity.username,
+            'roles': list(session.identity.roles),
+            'created_at': session.created_at,
+            'expires_at': session.expires_at,
+        }, separators=(',', ':'))
+
+    @staticmethod
+    def _decode(value: str) -> Session:
+        data = json.loads(value)
+        return Session(
+            token=str(data['token']),
+            csrf_token=str(data['csrf_token']),
+            identity=Identity(str(data['username']), tuple(str(role) for role in data['roles'])),
+            created_at=float(data['created_at']),
+            expires_at=float(data['expires_at']),
+        )
+
+    def create(self, identity: Identity, now: float | None = None) -> Session:
+        now = time.time() if now is None else now
+        session = Session(
+            token=secrets.token_urlsafe(32),
+            csrf_token=secrets.token_urlsafe(32),
+            identity=identity,
+            created_at=now,
+            expires_at=now + self.ttl_seconds,
+        )
+        self.client.setex(self._key(session.token), self.ttl_seconds, self._encode(session))
+        return session
+
+    def get(self, token: str | None, now: float | None = None) -> Session | None:
+        if not token:
+            return None
+        try:
+            session = self._decode(self.client.get(self._key(token)))
+        except (TypeError, ValueError, KeyError, json.JSONDecodeError):
+            return None
+        now = time.time() if now is None else now
+        if session.expires_at <= now:
+            self.revoke(token)
+            return None
+        return session
+
+    def revoke(self, token: str | None) -> None:
+        if token:
+            self.client.delete(self._key(token))
+
+
 class IAMService:
     """Local IAM facade with password + MFA + RBAC enforcement."""
 
     def __init__(self):
-        self.sessions = SessionStore()
+        session_store = os.environ.get('SESSION_STORE', 'memory').lower()
+        if session_store == 'redis':
+            self.sessions = RedisSessionStore(os.environ.get('REDIS_URL'))
+        elif session_store == 'memory':
+            self.sessions = SessionStore()
+        else:
+            raise RuntimeError('SESSION_STORE must be memory or redis')
         self.login_throttle = LoginThrottle()
         self.audit_log = AuditLog()
         self._dummy_hash = hash_password("not-a-real-password-constant")

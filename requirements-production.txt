@@ -1,0 +1,3 @@
+# Runtime-only dependency for SESSION_STORE=redis.
+# The preview remains dependency-free and uses memory sessions.
+redis==8.1.0
