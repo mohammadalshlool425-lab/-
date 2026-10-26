@@ -1509,7 +1509,17 @@ STATIC_ASSETS = {
 }
 
 
-APP_VERSION = '0.11.0'
+APP_VERSION = '0.12.0'
+SERVICE_CATALOG = [
+    {'slug': 'home-maintenance', 'name_ar': 'صيانة منزلية', 'name_en': 'Home maintenance', 'minimum_amount_minor': 1500, 'currency': 'JOD'},
+    {'slug': 'cleaning', 'name_ar': 'تنظيف وتعقيم', 'name_en': 'Cleaning and sanitization', 'minimum_amount_minor': 1200, 'currency': 'JOD'},
+    {'slug': 'moving-delivery', 'name_ar': 'نقل وشحن', 'name_en': 'Moving and delivery', 'minimum_amount_minor': 2500, 'currency': 'JOD'},
+    {'slug': 'electric-plumbing', 'name_ar': 'كهرباء وسباكة', 'name_en': 'Electrical and plumbing', 'minimum_amount_minor': 1800, 'currency': 'JOD'},
+    {'slug': 'painting-renovation', 'name_ar': 'دهان وترميم', 'name_en': 'Painting and renovation', 'minimum_amount_minor': 3500, 'currency': 'JOD'},
+    {'slug': 'car-maintenance', 'name_ar': 'صيانة سيارات', 'name_en': 'Car maintenance', 'minimum_amount_minor': 2000, 'currency': 'JOD'},
+    {'slug': 'gardens-pools', 'name_ar': 'حدائق ومسابح', 'name_en': 'Gardens and pools', 'minimum_amount_minor': 1500, 'currency': 'JOD'},
+    {'slug': 'events', 'name_ar': 'خدمات المناسبات', 'name_en': 'Events services', 'minimum_amount_minor': 3000, 'currency': 'JOD'},
+]
 MAX_PATH_LENGTH = 2048
 RATE_LIMIT_WINDOW = 60
 RATE_LIMIT_MAX_REQUESTS = 180
@@ -1746,6 +1756,20 @@ class AppHandler(BaseHTTPRequestHandler):
         self._send_payload(b'', 'text/plain; charset=utf-8', 303, False, headers)
 
     def _serve_api(self, path, method, include_body=True):
+        if path == '/api/services' and method in {'GET', 'HEAD'}:
+            try:
+                if DATA is not None:
+                    services = DATA.list_services()
+                elif os.environ.get('APP_ENV', 'development').lower() == 'production':
+                    self._send_json({'error': 'data_store_unavailable'}, 503, include_body, {'Cache-Control': 'no-store'})
+                    return
+                else:
+                    services = [dict(item) for item in SERVICE_CATALOG]
+                self._send_json({'services': services}, 200, include_body, {'Cache-Control': 'public, max-age=60'})
+            except DataStoreError:
+                self._send_json({'error': 'data_store_unavailable'}, 503, include_body, {'Cache-Control': 'no-store'})
+            return
+
         if path == '/api/auth/status' and method in {'GET', 'HEAD'}:
             session = self._current_session()
             payload = {'authenticated': bool(session)}

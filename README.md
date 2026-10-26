@@ -1,6 +1,6 @@
 # عزوتك | خدماتك أقرب
 
-إصدار النموذج الحالي: `0.11.0`
+إصدار النموذج الحالي: `0.12.0`
 
 نموذج تفاعلي RTL لمنصة خدمات منزلية أردنية، مع واجهة العميل ولوحة المدير العام ومركز حماية تشغيلي.
 
@@ -48,7 +48,7 @@ python -m py_compile app.py security.py jobs.py worker.py config.py oidc.py scri
 - `jobs.py` و`worker.py`: طوابير Redis Streams مع consumer groups وretry وdead-letter، وعامل منفصل للمهام الخلفية.
 - `config.py` و`scripts/validate_production_config.py`: بوابة fail-closed تمنع تشغيل production قبل OIDC وPostgreSQL وRedis وWAF.
 - `oidc.py`: Authorization Code + PKCE، discovery مقيد عبر HTTPS، تحقق RS256 من ID token، وربط مجموعات Keycloak بأدوار RBAC.
-- `repository.py`: PostgreSQL pool لقراءات لوحة الإدارة وكتابة سجل التدقيق في production فقط.
+- `repository.py`: PostgreSQL pool لقراءات لوحة الإدارة وكتابة سجل التدقيق وكتالوج الخدمات في production فقط.
 - `scripts/migrate.py`: تشغيل migrations بقفل PostgreSQL وchecksum ومنع تعديل migration مطبق.
 - `scripts/load_smoke.py`: اختبار حمل محدود وآمن للـ health endpoint محلياً أو على staging مصرح.
 - `scripts/dast_smoke.py`: فحوص DAST دفاعية للمسارات والرؤوس ورفض traversal والطلبات غير المصرح بها.

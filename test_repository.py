@@ -27,6 +27,8 @@ class FakeConnection:
 
     def execute(self, sql, params=()):
         self.queries.append((sql, params))
+        if 'FROM services' in sql:
+            return FakeResult(many=[('service-1', 'cleaning', 'تنظيف وتعقيم', 'Cleaning', 1200, 'JOD', 'home', 'المنزل')])
         if 'FROM orders' in sql:
             return FakeResult((12, 3450, 7, 4.75))
         if 'FROM audit_events' in sql and 'COUNT' in sql:
@@ -51,6 +53,11 @@ class RepositoryTests(unittest.TestCase):
     def setUp(self):
         self.pool = FakePool()
         self.repository = PostgresRepository('postgresql://runtime@localhost/db', pool=self.pool)
+
+    def test_services_are_read_from_database_rows(self):
+        services = self.repository.list_services()
+        self.assertEqual(services[0]['slug'], 'cleaning')
+        self.assertEqual(services[0]['minimum_amount_minor'], 1200)
 
     def test_admin_overview_is_read_from_database_row(self):
         self.assertEqual(self.repository.admin_overview(), {

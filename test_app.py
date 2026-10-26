@@ -40,7 +40,7 @@ class AppSecurityTests(unittest.TestCase):
     def test_security_headers_are_present(self):
         response = self.fetch('/health')
         self.assertEqual(response.status, 200)
-        self.assertIn('"version":"0.11.0"', response.read().decode('utf-8'))
+        self.assertIn('"version":"0.12.0"', response.read().decode('utf-8'))
         self.assertEqual(response.headers['X-Content-Type-Options'], 'nosniff')
         self.assertEqual(response.headers['Referrer-Policy'], 'no-referrer')
         self.assertEqual(response.headers['Cache-Control'], 'no-store, max-age=0')
@@ -50,6 +50,13 @@ class AppSecurityTests(unittest.TestCase):
         response = self.fetch('/ready')
         self.assertEqual(response.status, 200)
         self.assertIn('"status":"ready"', response.read().decode('utf-8'))
+
+    def test_service_catalog_is_readable_without_authentication(self):
+        response = self.fetch('/api/services')
+        payload = response.read().decode('utf-8')
+        self.assertEqual(response.status, 200)
+        self.assertIn('cleaning', payload)
+        self.assertEqual(response.headers['Cache-Control'], 'public, max-age=60')
 
     def test_auth_status_does_not_create_a_session(self):
         response = self.fetch('/api/auth/status')

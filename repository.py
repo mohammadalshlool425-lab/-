@@ -63,6 +63,30 @@ class PostgresRepository:
         except Exception:
             return False
 
+    def list_services(self) -> list[dict[str, Any]]:
+        rows = self._fetchall("""
+            SELECT s.id::text, s.slug, s.name_ar, s.name_en,
+                   s.minimum_amount_minor, s.currency,
+                   c.slug, c.name_ar
+            FROM services AS s
+            JOIN service_categories AS c ON c.id = s.category_id
+            WHERE s.active = TRUE AND c.active = TRUE
+            ORDER BY c.slug, s.name_ar
+        """)
+        return [
+            {
+                "id": str(row[0]),
+                "slug": str(row[1]),
+                "name_ar": str(row[2]),
+                "name_en": str(row[3]) if row[3] else None,
+                "minimum_amount_minor": int(row[4]),
+                "currency": str(row[5]),
+                "category_slug": str(row[6]),
+                "category_name_ar": str(row[7]),
+            }
+            for row in rows
+        ]
+
     def admin_overview(self) -> dict[str, Any]:
         sql = """
             SELECT
