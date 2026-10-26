@@ -29,8 +29,28 @@ class ProductionConfigTests(unittest.TestCase):
             'DATA_BACKEND': 'postgres',
             'DATABASE_URL': 'postgresql://runtime:secret@postgres.internal:5432/azwatek',
             'WAF_MODE': 'managed',
+            'ORDER_ADDRESS_ENCRYPTION_KEY': 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
         }
         self.assertEqual(validate_production_env(env), [])
+
+    def test_production_requires_a_valid_address_encryption_key(self):
+        issues = validate_production_env({
+            'APP_ENV': 'production',
+            'ENABLE_HSTS': '1',
+            'IAM_MODE': 'oidc',
+            'PUBLIC_ORIGIN': 'https://app.azwatek.jo',
+            'OIDC_ISSUER_URL': 'https://identity.azwatek.jo/realms/azwatek',
+            'OIDC_CLIENT_ID': 'azwatek-web',
+            'OIDC_REQUIRED_AMR': 'webauthn,fido2,otp',
+            'OIDC_REDIRECT_URI': 'https://app.azwatek.jo/auth/callback',
+            'SESSION_STORE': 'redis',
+            'RATE_LIMIT_STORE': 'redis',
+            'REDIS_URL': 'rediss://redis.internal:6380/0',
+            'DATA_BACKEND': 'postgres',
+            'DATABASE_URL': 'postgresql://runtime:secret@postgres.internal:5432/azwatek',
+            'WAF_MODE': 'managed',
+        })
+        self.assertIn('ORDER_ADDRESS_ENCRYPTION_KEY must be a base64url-encoded 32-byte key', issues)
 
     def test_redirect_must_belong_to_public_origin(self):
         env = {

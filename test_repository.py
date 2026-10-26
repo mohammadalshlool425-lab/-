@@ -1,4 +1,5 @@
 import unittest
+from datetime import datetime, timezone
 
 from repository import PostgresRepository
 
@@ -25,8 +26,21 @@ class FakeConnection:
     def __exit__(self, *args):
         return False
 
+    def transaction(self):
+        return self
+
     def execute(self, sql, params=()):
         self.queries.append((sql, params))
+        if 'INSERT INTO app_users' in sql:
+            return FakeResult(('customer-1',))
+        if 'SELECT id, minimum_amount_minor' in sql:
+            return FakeResult(('service-1', 1000, 'JOD'))
+        if 'INSERT INTO orders' in sql:
+            start = datetime(2026, 10, 27, 10, tzinfo=timezone.utc)
+            end = datetime(2026, 10, 27, 11, tzinfo=timezone.utc)
+            return FakeResult(('order-1', 'EZW-ABC123', 'service-1', 'requested', 'amman', 1500, 'JOD', start, end))
+        if 'WHERE customer_id' in sql and 'idempotency_key' in sql:
+            return FakeResult(None)
         if 'FROM services' in sql:
             return FakeResult(many=[('service-1', 'cleaning', 'تنظيف وتعقيم', 'Cleaning', 1200, 'JOD', 'home', 'المنزل')])
         if 'FROM orders' in sql:
@@ -58,6 +72,28 @@ class RepositoryTests(unittest.TestCase):
         services = self.repository.list_services()
         self.assertEqual(services[0]['slug'], 'cleaning')
         self.assertEqual(services[0]['minimum_amount_minor'], 1200)
+
+    def test_order_creation_is_atomic_and_returns_public_code(self):
+        start = datetime(2026, 10, 27, 10, tzinfo=timezone.utc)
+        end = datetime(2026, 10, 27, 11, tzinfo=timezone.utc)
+        order, replayed = self.repository.create_order(
+            external_subject='oidc-subject-1',
+            service_slug='cleaning',
+            city='amman',
+            address_ciphertext=b'encrypted',
+            address_nonce=b'012345678901',
+            address_key_version=1,
+            estimated_amount_minor=1500,
+            scheduled_from=start,
+            scheduled_to=end,
+            idempotency_key='request-key-123456',
+        )
+        self.assertFalse(replayed)
+        self.assertEqual(order['public_code'], 'EZW-ABC123')
+        self.assertEqual(order['currency'], 'JOD')
+        self.assertTrue(any('INSERT INTO order_events' in sql for sql, _ in self.pool.connection_instance.queries))
+        order_sql = next(sql for sql, _ in self.pool.connection_instance.queries if 'INSERT INTO orders' in sql)
+        self.assertIn('ON CONFLICT (customer_id, idempotency_key) DO NOTHING', order_sql)
 
     def test_admin_overview_is_read_from_database_row(self):
         self.assertEqual(self.repository.admin_overview(), {

@@ -40,7 +40,7 @@ class AppSecurityTests(unittest.TestCase):
     def test_security_headers_are_present(self):
         response = self.fetch('/health')
         self.assertEqual(response.status, 200)
-        self.assertIn('"version":"0.12.0"', response.read().decode('utf-8'))
+        self.assertIn('"version":"0.13.0"', response.read().decode('utf-8'))
         self.assertEqual(response.headers['X-Content-Type-Options'], 'nosniff')
         self.assertEqual(response.headers['Referrer-Policy'], 'no-referrer')
         self.assertEqual(response.headers['Cache-Control'], 'no-store, max-age=0')
@@ -62,6 +62,11 @@ class AppSecurityTests(unittest.TestCase):
         response = self.fetch('/api/auth/status')
         self.assertEqual(response.status, 200)
         self.assertEqual(response.read().decode('utf-8'), '{"authenticated":false,"auth_mode":"local-preview"}')
+
+    def test_customer_orders_require_authentication(self):
+        with self.assertRaises(HTTPError) as caught:
+            self.fetch('/api/orders')
+        self.assertEqual(caught.exception.code, 401)
 
     def test_admin_api_requires_a_session(self):
         with self.assertRaises(HTTPError) as caught:
@@ -121,6 +126,12 @@ class AppSecurityTests(unittest.TestCase):
             self.assertNotIn('لوحة المدير العام', rendered)
             rendered_without_preview = app.remove_marked_blocks(app.HTML, app.PREVIEW_NOTICE_START, app.PREVIEW_NOTICE_END)
             self.assertNotIn('وضع المعاينة:', rendered_without_preview)
+            rendered_without_samples = app.remove_marked_blocks(rendered, app.CUSTOMER_SAMPLE_ORDERS_START, app.CUSTOMER_SAMPLE_ORDERS_END)
+            self.assertNotIn('<article class="order-row"><div class="provider-avatar">ي</div>', rendered_without_samples)
+            rendered_without_notifications = app.remove_marked_blocks(app.HTML, app.PREVIEW_NOTIFICATIONS_START, app.PREVIEW_NOTIFICATIONS_END)
+            self.assertNotIn('الفني بالطريق إليك', rendered_without_notifications)
+            rendered_without_payment = app.remove_marked_blocks(app.HTML, app.PREVIEW_PAYMENT_START, app.PREVIEW_PAYMENT_END)
+            self.assertNotIn('••••  4821', rendered_without_payment)
         finally:
             if original_env is None:
                 os.environ.pop('APP_ENV', None)

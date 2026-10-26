@@ -23,14 +23,14 @@
 - سجل تدقيق runtime محدود ومُنقّح مع endpoint محمي `GET /api/admin/audit`; عند `DATA_BACKEND=postgres` يُكتب synchronously إلى `audit_events` ويصبح فشل المخزن فشلاً مغلقاً، مع استمرار الحاجة إلى retention/backup append-only مُدار.
 - قوالب Reverse Proxy في `deploy/` لـ Nginx وCaddy، مع TLS حديث، rate limiting، وحدود حجم الطلب.
 - GitHub Actions مع اختبارات متعددة لإصدارات Python، Ruff، Bandit، pip-audit، CodeQL، DAST smoke، ومراجعة تغييرات الاعتماديات وبناء صورة non-root.
-- مخطط PostgreSQL يفرض JOD، idempotency، تشفير العناوين على مستوى التطبيق، وحدوداً منفصلة للتدقيق.
+- مخطط PostgreSQL يفرض JOD، idempotency، تشفير العناوين على مستوى التطبيق، وحدوداً منفصلة للتدقيق. `POST /api/orders` لا يعمل إلا لجلسة OIDC بدور `customer`، ويتطلب CSRF و`Idempotency-Key` ويكتب الطلب و`order.requested` في معاملة واحدة.
 
 ## IAM الحالي
 
 - `POST /api/auth/login` لا يعمل دون `IAM_ADMIN_USERNAME` و`IAM_ADMIN_PASSWORD_HASH` و`IAM_MFA_TOTP_SECRET`.
 - كلمة المرور تُخزن كـ scrypt hash مع salt؛ لا يتم تخزين كلمة المرور نفسها.
 - رمز MFA هو TOTP من ٦ أرقام مع نافذة انحراف ٣٠ ثانية.
-- الأدوار الحالية: `owner`, `ops_manager`, `security_auditor`, `support_lead`.
+- الأدوار الحالية: `customer`, `owner`, `ops_manager`, `security_auditor`, `support_lead`؛ صلاحيات العميل محدودة بقراءة/إنشاء طلباته وتقييمها دون صلاحيات الإدارة.
 - صلاحيات الإدارة تُفحص على الخادم عبر RBAC؛ الواجهة وحدها ليست حاجز أمان.
 - logout يتطلب CSRF token، والجلسة Cookie `HttpOnly; SameSite=Strict` وتصبح `__Host-` و`Secure` في الإنتاج.
 - الجلسات داخل الذاكرة افتراضياً للمعاينة، ويتوفر RedisSessionStore عبر `SESSION_STORE=redis` للنسخ المتعددة؛ استخدم `rediss://` وشهادة موثوقة في الإنتاج.

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 from os import environ
 from urllib.parse import urlsplit
 
@@ -84,4 +86,15 @@ def validate_production_env(env: dict[str, str] | None = None) -> list[str]:
         issues.append("DATABASE_URL must target a non-placeholder PostgreSQL endpoint in production")
     if _value(values, "WAF_MODE").lower() != "managed":
         issues.append("WAF_MODE must be managed in production")
+    address_key = _value(values, "ORDER_ADDRESS_ENCRYPTION_KEY")
+    try:
+        decoded_key = base64.b64decode(
+            address_key + "=" * (-len(address_key) % 4),
+            altchars=b"-_",
+            validate=True,
+        )
+    except (binascii.Error, ValueError, TypeError):
+        decoded_key = b""
+    if len(decoded_key) != 32:
+        issues.append("ORDER_ADDRESS_ENCRYPTION_KEY must be a base64url-encoded 32-byte key")
     return issues

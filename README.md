@@ -1,6 +1,6 @@
 # عزوتك | خدماتك أقرب
 
-إصدار النموذج الحالي: `0.12.0`
+إصدار النموذج الحالي: `0.13.0`
 
 نموذج تفاعلي RTL لمنصة خدمات منزلية أردنية، مع واجهة العميل ولوحة المدير العام ومركز حماية تشغيلي.
 
@@ -48,7 +48,7 @@ python -m py_compile app.py security.py jobs.py worker.py config.py oidc.py scri
 - `jobs.py` و`worker.py`: طوابير Redis Streams مع consumer groups وretry وdead-letter، وعامل منفصل للمهام الخلفية.
 - `config.py` و`scripts/validate_production_config.py`: بوابة fail-closed تمنع تشغيل production قبل OIDC وPostgreSQL وRedis وWAF.
 - `oidc.py`: Authorization Code + PKCE، discovery مقيد عبر HTTPS، تحقق RS256 من ID token، وربط مجموعات Keycloak بأدوار RBAC.
-- `repository.py`: PostgreSQL pool لقراءات لوحة الإدارة وكتابة سجل التدقيق وكتالوج الخدمات في production فقط.
+- `repository.py`: PostgreSQL pool لكتالوج الخدمات، إنشاء/قراءة طلبات العملاء بمعاملة واحدة وidempotency، قراءات لوحة الإدارة، وكتابة سجل التدقيق في production فقط.
 - `scripts/migrate.py`: تشغيل migrations بقفل PostgreSQL وchecksum ومنع تعديل migration مطبق.
 - `scripts/load_smoke.py`: اختبار حمل محدود وآمن للـ health endpoint محلياً أو على staging مصرح.
 - `scripts/dast_smoke.py`: فحوص DAST دفاعية للمسارات والرؤوس ورفض traversal والطلبات غير المصرح بها.
@@ -64,4 +64,4 @@ python -m py_compile app.py security.py jobs.py worker.py config.py oidc.py scri
 - `.github/workflows/quality-security.yml`: اختبارات CI وSAST وSCA وCodeQL وDependency Review وبناء صورة non-root.
 - `.github/dependabot.yml`: تحديثات أسبوعية لإجراءات GitHub.
 
-> واجهة الحجز ولوحة الإدارة في المعاينة تحافظان على تجربة عزوتك الأردنية، لكن زر التأكيد لا ينشئ حجزاً أو دفعة فعلية بعد. في production تُستخدم APIs وقاعدة البيانات ومزودات الدفع بعد اكتمال الربط والتحقق. وعند تفعيل OIDC، يبدأ دخول العميل مسار Keycloak الحقيقي ولا يسقط إلى دخول محلي وهمي.
+> واجهة الحجز ولوحة الإدارة في المعاينة تحافظان على تجربة عزوتك الأردنية، لكن زر التأكيد لا ينشئ حجزاً أو دفعة فعلية في المعاينة. في production ينشئ `POST /api/orders` طلباً حقيقياً بعد OIDC، وتشفير العنوان، وidempotency، وتسجيل التدقيق؛ الدفع والإشعارات الخارجية لا يُعلنان مكتملين قبل ربط مزوديهما. وعند تفعيل OIDC، يبدأ دخول العميل مسار Keycloak الحقيقي ولا يسقط إلى دخول محلي وهمي.

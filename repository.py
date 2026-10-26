@@ -15,6 +15,14 @@ class DataStoreError(RuntimeError):
     """Raised when the production data store is unavailable or invalid."""
 
 
+class OrderInputError(ValueError):
+    """Raised when a service or order field cannot be accepted."""
+
+
+class IdempotencyConflict(ValueError):
+    """Raised when a key is reused with a different order payload."""
+
+
 class PostgresRepository:
     def __init__(self, database_url: str, min_size: int = 1, max_size: int = 10, pool=None):
         if not database_url.startswith(("postgresql://", "postgres://")):
@@ -83,6 +91,204 @@ class PostgresRepository:
                 "currency": str(row[5]),
                 "category_slug": str(row[6]),
                 "category_name_ar": str(row[7]),
+            }
+            for row in rows
+        ]
+
+    def create_order(
+        self,
+        *,
+        external_subject: str,
+        service_slug: str,
+        city: str,
+        address_ciphertext: bytes,
+        address_nonce: bytes,
+        address_key_version: int,
+        estimated_amount_minor: int,
+        scheduled_from,
+        scheduled_to,
+        idempotency_key: str,
+        display_name: str | None = None,
+        phone_e164: str | None = None,
+        actor_subject: str | None = None,
+    ) -> tuple[dict[str, Any], bool]:
+        """Create one order and its first event atomically, or return an idempotent replay."""
+        if not external_subject or not service_slug or not city or not idempotency_key:
+            raise OrderInputError("required_order_field")
+        if not isinstance(address_ciphertext, bytes) or not isinstance(address_nonce, bytes):
+            raise OrderInputError("encrypted_address_required")
+        try:
+            estimated_amount_minor = int(estimated_amount_minor)
+            address_key_version = int(address_key_version)
+        except (TypeError, ValueError) as error:
+            raise OrderInputError("invalid_order_amount") from error
+        if estimated_amount_minor < 0 or address_key_version < 1:
+            raise OrderInputError("invalid_order_value")
+
+        try:
+            with self.pool.connection() as connection:
+                with connection.transaction():
+                    customer_row = connection.execute(
+                        """
+                        INSERT INTO app_users (external_subject, phone_e164, display_name)
+                        VALUES (%s, %s, %s)
+                        ON CONFLICT (external_subject) DO UPDATE
+                          SET phone_e164 = COALESCE(EXCLUDED.phone_e164, app_users.phone_e164),
+                              display_name = COALESCE(EXCLUDED.display_name, app_users.display_name),
+                              updated_at = now()
+                        RETURNING id
+                        """,
+                        (external_subject, phone_e164, display_name),
+                    ).fetchone()
+                    if not customer_row:
+                        raise OrderInputError("customer_unavailable")
+                    customer_id = customer_row[0]
+
+                    service_row = connection.execute(
+                        """
+                        SELECT id, minimum_amount_minor, currency
+                        FROM services
+                        WHERE slug = %s AND active = TRUE
+                        """,
+                        (service_slug,),
+                    ).fetchone()
+                    if not service_row:
+                        raise OrderInputError("service_not_found")
+                    service_id, minimum_amount_minor, currency = service_row
+                    if estimated_amount_minor < int(minimum_amount_minor):
+                        raise OrderInputError("amount_below_service_minimum")
+
+                    existing = connection.execute(
+                        """
+                        SELECT id::text, public_code, service_id, status, city,
+                               estimated_amount_minor, currency, scheduled_from, scheduled_to
+                        FROM orders
+                        WHERE customer_id = %s AND idempotency_key = %s
+                        FOR UPDATE
+                        """,
+                        (customer_id, idempotency_key),
+                    ).fetchone()
+                    if existing:
+                        self._validate_replay(existing, service_id, city, estimated_amount_minor, currency, scheduled_from, scheduled_to)
+                        return self._order_payload(existing), True
+
+                    order = connection.execute(
+                        """
+                        INSERT INTO orders (
+                            public_code, customer_id, service_id, status, city,
+                            address_ciphertext, address_nonce, address_key_version,
+                            estimated_amount_minor, currency, scheduled_from,
+                            scheduled_to, idempotency_key
+                        )
+                        VALUES (
+                            'EZW-' || upper(encode(gen_random_bytes(5), 'hex')),
+                            %s, %s, 'requested', %s, %s, %s, %s, %s, %s,
+                            %s, %s, %s
+                        )
+                        ON CONFLICT (customer_id, idempotency_key) DO NOTHING
+                        RETURNING id::text, public_code, service_id, status, city,
+                                  estimated_amount_minor, currency, scheduled_from, scheduled_to
+                        """,
+                        (
+                            customer_id,
+                            service_id,
+                            city,
+                            address_ciphertext,
+                            address_nonce,
+                            address_key_version,
+                            estimated_amount_minor,
+                            currency,
+                            scheduled_from,
+                            scheduled_to,
+                            idempotency_key,
+                        ),
+                    ).fetchone()
+                    if not order:
+                        replay = connection.execute(
+                            """
+                            SELECT id::text, public_code, service_id, status, city,
+                                   estimated_amount_minor, currency, scheduled_from, scheduled_to
+                            FROM orders
+                            WHERE customer_id = %s AND idempotency_key = %s
+                            FOR UPDATE
+                            """,
+                            (customer_id, idempotency_key),
+                        ).fetchone()
+                        if not replay:
+                            raise OrderInputError("order_not_created")
+                        self._validate_replay(replay, service_id, city, estimated_amount_minor, currency, scheduled_from, scheduled_to)
+                        return self._order_payload(replay), True
+                    connection.execute(
+                        """
+                        INSERT INTO order_events (order_id, event_type, actor_subject, payload)
+                        VALUES (%s, 'order.requested', %s, %s::jsonb)
+                        """,
+                        (order[0], actor_subject or external_subject, json.dumps({'source': 'customer_api'}, separators=(",", ":"))),
+                    )
+                    return self._order_payload(order), False
+        except (OrderInputError, IdempotencyConflict):
+            raise
+        except Exception as error:
+            raise DataStoreError("PostgreSQL order write failed") from error
+
+    @staticmethod
+    def _validate_replay(existing, service_id, city, estimated_amount_minor, currency, scheduled_from, scheduled_to) -> None:
+        if (
+            str(existing[2]) != str(service_id)
+            or str(existing[4]) != city
+            or int(existing[5]) != estimated_amount_minor
+            or existing[6] != currency
+            or existing[7] != scheduled_from
+            or existing[8] != scheduled_to
+        ):
+            raise IdempotencyConflict("idempotency_key_reused")
+
+    @staticmethod
+    def _order_payload(row) -> dict[str, Any]:
+        scheduled_from = row[7].isoformat() if hasattr(row[7], 'isoformat') else str(row[7])
+        scheduled_to = row[8].isoformat() if hasattr(row[8], 'isoformat') else str(row[8])
+        return {
+            'id': str(row[0]),
+            'public_code': str(row[1]),
+            'status': str(row[3]),
+            'city': str(row[4]),
+            'estimated_amount_minor': int(row[5]),
+            'currency': str(row[6]),
+            'scheduled_from': scheduled_from,
+            'scheduled_to': scheduled_to,
+        }
+
+    def customer_orders(self, external_subject: str, limit: int = 50) -> list[dict[str, Any]]:
+        if not external_subject:
+            raise OrderInputError("customer_required")
+        limit = max(1, min(int(limit), 100))
+        rows = self._fetchall(
+            """
+            SELECT o.id::text, o.public_code, s.slug, s.name_ar, o.status,
+                   o.city, o.estimated_amount_minor, o.currency,
+                   o.scheduled_from, o.scheduled_to, o.created_at
+            FROM orders AS o
+            JOIN app_users AS u ON u.id = o.customer_id
+            JOIN services AS s ON s.id = o.service_id
+            WHERE u.external_subject = %s
+            ORDER BY o.created_at DESC
+            LIMIT %s
+            """,
+            (external_subject, limit),
+        )
+        return [
+            {
+                'id': str(row[0]),
+                'public_code': str(row[1]),
+                'service_slug': str(row[2]),
+                'service_name_ar': str(row[3]),
+                'status': str(row[4]),
+                'city': str(row[5]),
+                'estimated_amount_minor': int(row[6]),
+                'currency': str(row[7]),
+                'scheduled_from': row[8].isoformat() if hasattr(row[8], 'isoformat') else str(row[8]),
+                'scheduled_to': row[9].isoformat() if hasattr(row[9], 'isoformat') else str(row[9]),
+                'created_at': row[10].isoformat() if hasattr(row[10], 'isoformat') else str(row[10]),
             }
             for row in rows
         ]

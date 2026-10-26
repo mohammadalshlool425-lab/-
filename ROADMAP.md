@@ -41,7 +41,7 @@
 
 - PostgreSQL: migration SQL أولي مضبوط موجود في `db/migrations/0001_initial.sql`، وقراءات لوحة الإدارة/كتابة التدقيق تمر عبر `repository.py` عند تفعيل DATA_BACKEND=postgres؛ تشغيل Alembic وإدارة الإصدارات التالية يبقيان ضمن pipeline قاعدة البيانات.
 - Redis للجلسات، queues، idempotency، وrate limiting الموزع؛ session adapter وlogin/request throttles وRedis Streams worker متوفرة، ويبقى ربط البيئة الخارجية وhandlers الخاصة بالدفع/الإشعارات مطلوباً.
-- نموذج مستخدمين، مزودين، خدمات، حجوزات، مدفوعات، وتقييمات؛ كتالوج الخدمات أصبح له endpoint إنتاجي للقراءة من PostgreSQL، بينما إنشاء الحجز والدفع ينتظر IAM العميل ومزود الدفع.
+- نموذج مستخدمين، مزودين، خدمات، حجوزات، مدفوعات، وتقييمات؛ كتالوج الخدمات و`POST /api/orders` أصبحا مرتبطين بـPostgreSQL مع تشفير العنوان وidempotency وauthorization وتدقيق، بينما الدفع والإشعارات ينتظران مزودين حقيقيين.
 - سجل تدقيق append-only مع retention ونسخ احتياطية مشفرة.
 - منع تكرار الحجز والدفع عبر idempotency keys.
 

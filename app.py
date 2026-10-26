@@ -1,7 +1,11 @@
 from collections import defaultdict, deque
+from datetime import datetime, timedelta, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
+import base64
+import binascii
 import json
+import re
 import os
 import secrets
 import threading
@@ -10,7 +14,7 @@ from pathlib import Path
 
 from config import validate_production_env
 from oidc import OIDCClient, OIDCError
-from repository import DataStoreError, PostgresRepository
+from repository import DataStoreError, IdempotencyConflict, OrderInputError, PostgresRepository
 from security import IAMService, RedisWindowLimiter, can
 
 
@@ -552,6 +556,7 @@ HTML = r'''<!doctype html>
     .filter-pill { border: 1px solid var(--line); background: #fff; color: var(--muted); border-radius: 9px; padding: 8px 12px; font-size: 10px; font-weight: 800; }
     .filter-pill.active { color: var(--teal-dark); border-color: #b8ddcf; background: #e9f7f1; }
     .orders-list { display: flex; flex-direction: column; gap: 11px; }
+    .empty-state { padding: 22px; text-align: center; border: 1px dashed #cfe1da; border-radius: 14px; color: var(--muted); background: #fbfdfb; }
     .order-row { display: flex; align-items: center; gap: 15px; border: 1px solid var(--line); background: #fff; border-radius: 17px; padding: 15px 17px; }
     .order-row .provider-avatar { width: 43px; height: 43px; }
     .order-row-copy { flex: 1; min-width: 0; }
@@ -631,7 +636,8 @@ HTML = r'''<!doctype html>
     .input-shell { display: flex; align-items: center; gap: 9px; border: 1px solid var(--line); border-radius: 12px; height: 43px; padding: 0 12px; color: var(--teal); background: #fff; }
     .input-shell:focus-within { border-color: #9ed2c5; box-shadow: 0 0 0 3px rgba(19,138,125,.07); }
     .input-shell .icon { width: 16px; height: 16px; flex: 0 0 auto; }
-    .input-shell input { width: 100%; min-width: 0; border: 0; outline: 0; color: var(--ink); background: transparent; font-size: 11px; }
+    .input-shell input, .input-shell select { width: 100%; min-width: 0; border: 0; outline: 0; color: var(--ink); background: transparent; font-size: 11px; }
+    .input-shell select { appearance: none; cursor: pointer; }
     .date-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
     .date-option { border: 1px solid var(--line); border-radius: 11px; background: #fff; color: #7b928e; padding: 9px 5px; text-align: center; font-size: 10px; }
     .date-option strong { display: block; color: var(--ink); font-size: 11px; margin-bottom: 2px; }
@@ -914,7 +920,9 @@ HTML = r'''<!doctype html>
       <header class="topbar">
         <div class="date-label">الإثنين، <strong>٢٦ أكتوبر ٢٠٢٦</strong></div>
         <div class="topbar-actions">
+          <!-- PREVIEW_NOTIFICATIONS_START -->
           <button class="round-button" type="button" id="notificationButton" aria-label="الإشعارات" aria-expanded="false"><span class="icon" data-icon="bell"></span><i class="notification-dot"></i></button>
+          <!-- PREVIEW_NOTIFICATIONS_END -->
           <div class="top-profile" id="profileButton" role="button" tabindex="0" aria-label="فتح الحساب"><div class="top-profile-copy"><strong>ليان أحمد</strong><small>آخر دخول: الآن</small></div><div class="avatar">ل</div></div>
         </div>
       </header>
@@ -1004,11 +1012,14 @@ HTML = r'''<!doctype html>
       <section class="view" id="orders-view" data-page="orders">
         <div class="page-title"><div><h1>طلباتي</h1><p>تابعي كل خدماتك من مكان واحد.</p></div><button class="primary-button" type="button" data-book="تنظيف وتعقيم"><span class="icon" data-icon="plus"></span> طلب جديد</button></div>
         <div class="filter-pills"><button class="filter-pill active" type="button">الكل (٣)</button><button class="filter-pill" type="button">قيد التنفيذ (١)</button><button class="filter-pill" type="button">مكتملة (٢)</button></div>
-        <div class="orders-list">
+        <div class="orders-list" id="customerOrdersList">
+          <!-- CUSTOMER_SAMPLE_ORDERS_START -->
           <article class="order-row"><div class="provider-avatar">ي</div><div class="order-row-copy"><strong>صيانة تكييف سبليت</strong><p>مع يوسف للخدمات المنزلية · #SN-2841</p></div><div class="order-row-date"><strong>اليوم، ٥:٣٠ م</strong>الدوار السابع</div><span class="status-pill">قيد التنفيذ</span><button class="order-row-action" type="button" data-action="track">تتبع الطلب ←</button></article>
           <article class="order-row"><div class="provider-avatar avatar-warm">ر</div><div class="order-row-copy"><strong>تنظيف شقة كاملة</strong><p>مع راحة ونظافة · #SN-2798</p></div><div class="order-row-date"><strong>١٩ أكتوبر ٢٠٢٦</strong>خلدا، عمّان</div><span class="status-pill done">مكتمل</span><button class="order-row-action" type="button" data-action="rate">قيّمي الخدمة ★</button></article>
           <article class="order-row"><div class="provider-avatar avatar-indigo">ن</div><div class="order-row-copy"><strong>نقل أغراض</strong><p>مع النشامى للنقل · #SN-2713</p></div><div class="order-row-date"><strong>٧ أكتوبر ٢٠٢٦</strong>إربد، الأردن</div><span class="status-pill done">مكتمل</span><button class="order-row-action" type="button" data-action="rate">قيّمي الخدمة ★</button></article>
+          <!-- CUSTOMER_SAMPLE_ORDERS_END -->
         </div>
+        <p id="ordersEmptyNotice" class="empty-state" hidden>لا توجد طلبات محفوظة لهذا الحساب بعد.</p>
       </section>
 
       <!-- Services -->
@@ -1040,7 +1051,10 @@ HTML = r'''<!doctype html>
       <!-- Payments -->
       <section class="view" id="payments-view" data-page="payments">
         <div class="page-title"><div><h1>المدفوعات</h1><p>خيارات دفع بسيطة وآمنة في الأردن.</p></div><button class="primary-button" type="button" data-action="payment"><span class="icon" data-icon="plus"></span> إضافة طريقة</button></div>
+        <!-- PREVIEW_PAYMENT_START -->
         <div class="payment-layout"><article class="payment-card"><span class="card-label">بطاقة الدفع الأساسية</span><div class="card-number">••••  4821</div><div class="card-bottom"><span>LIAN AHMAD</span><strong>VISA</strong></div></article><div class="payment-methods"><div class="method-row"><span class="method-icon"><span class="icon" data-icon="credit-card"></span></span><span><strong>بطاقة بنكية</strong><small>Visa تنتهي بـ ٤٨٢١</small></span><span class="icon" data-icon="check"></span></div><div class="method-row"><span class="method-icon cliq"><span class="icon" data-icon="zap"></span></span><span><strong>CliQ</strong><small>الدفع الفوري من بنكك</small></span><span class="icon" data-icon="chevron-left"></span></div><div class="method-row"><span class="method-icon cash"><span class="icon" data-icon="hand"></span></span><span><strong>الدفع عند الإنجاز</strong><small>كاش أو بطاقة للمزوّد</small></span><span class="icon" data-icon="chevron-left"></span></div></div></div>
+        <!-- PREVIEW_PAYMENT_END -->
+        <p class="empty-state">لا توجد وسائل دفع محفوظة في هذا الحساب بعد. ربط البطاقات وCliQ سيتم عبر مزود دفع مرخّص.</p>
       </section>
 
       <!-- ADMIN_UI_START -->
@@ -1131,8 +1145,9 @@ HTML = r'''<!doctype html>
       <div class="modal-body">
         <div class="booking-view" id="bookingFormView">
           <div class="booking-service-line"><span class="service-icon green" id="bookingIcon"><span class="icon" data-icon="wrench"></span></span><span class="booking-service-copy"><small>الخدمة المختارة</small><strong id="bookingServiceName">صيانة منزلية</strong></span><button class="change-service" type="button" id="changeService">تغيير</button></div>
-          <div class="form-field"><label>وين نوصلك؟ <span>الموقع الافتراضي</span></label><div class="input-shell"><span class="icon" data-icon="location"></span><input id="bookingLocation" value="الدوار السابع، عمّان" /></div></div>
-          <div class="form-field"><label>متى يناسبك؟ <span>اختاري اليوم والوقت</span></label><div class="date-options"><button class="date-option selected" type="button"><strong>اليوم</strong>من ٥ - ٧ م</button><button class="date-option" type="button"><strong>غداً</strong>من ١٠ - ١٢ ص</button><button class="date-option" type="button"><strong>لاحقاً</strong>اختاري وقتاً</button></div></div>
+          <div class="form-field"><label>وين نوصلك؟ <span>العنوان لا يُحفظ مكشوفاً</span></label><div class="input-shell"><span class="icon" data-icon="location"></span><input id="bookingLocation" placeholder="مثال: شارع الجامعة، بناية ١٢" autocomplete="street-address" /></div></div>
+          <div class="form-field"><label for="bookingCity">المحافظة <span>مناطق عزوتك في الأردن</span></label><div class="input-shell"><span class="icon" data-icon="location"></span><select id="bookingCity"><option value="amman">عمّان</option><option value="irbid">إربد</option><option value="zarqa">الزرقاء</option><option value="aqaba">العقبة</option><option value="other">محافظة أخرى</option></select></div></div>
+          <div class="form-field"><label>متى يناسبك؟ <span>اختاري اليوم والوقت</span></label><div class="date-options"><button class="date-option selected" type="button" data-offset="0" data-start-hour="17" data-end-hour="19"><strong>اليوم</strong>من ٥ - ٧ م</button><button class="date-option" type="button" data-offset="1" data-start-hour="10" data-end-hour="12"><strong>غداً</strong>من ١٠ - ١٢ ص</button><button class="date-option" type="button" data-offset="2" data-start-hour="12" data-end-hour="14"><strong>لاحقاً</strong>بعد يومين</button></div></div>
           <div class="summary-strip"><span>التكلفة التقديرية تبدأ من</span><strong id="bookingPrice">١٢ <small>د.أ</small></strong></div>
           <div class="safe-note"><span class="icon" data-icon="shield"></span> لا توجد رسوم خفية — السعر النهائي يظهر قبل بدء الخدمة.</div>
           <button class="primary-button full-button" type="button" id="continueBooking">متابعة للتأكيد <span class="icon" data-icon="arrow-left"></span></button>
@@ -1150,7 +1165,7 @@ HTML = r'''<!doctype html>
 
   <!-- Success modal -->
   <div class="overlay" id="successModal" role="dialog" aria-modal="true" aria-labelledby="successTitle">
-    <div class="modal-card success-modal"><div class="success-mark"><span class="icon" data-icon="check"></span></div><h2 id="successTitle">المعاينة جاهزة</h2><p>هذه النسخة تستعرض رحلة الحجز فقط. لا يتم إنشاء طلب أو حجز مزود أو عملية دفع قبل ربط الخدمات الخارجية.</p><div class="success-order-id">الحالة <strong id="successOrderId">معاينة فقط</strong></div><div class="success-actions"><button class="primary-button" type="button" id="trackSuccess">الخدمات</button><button class="ghost-button" type="button" id="homeSuccess">الرئيسية</button></div></div>
+    <div class="modal-card success-modal"><div class="success-mark"><span class="icon" data-icon="check"></span></div><h2 id="successTitle">المعاينة جاهزة</h2><p id="successDescription">هذه النسخة تستعرض رحلة الحجز فقط. لا يتم إنشاء طلب أو حجز مزود أو عملية دفع قبل ربط الخدمات الخارجية.</p><div class="success-order-id"><span id="successOrderLabel">الحالة</span> <strong id="successOrderId">معاينة فقط</strong></div><div class="success-actions"><button class="primary-button" type="button" id="trackSuccess">طلباتي</button><button class="ghost-button" type="button" id="homeSuccess">الرئيسية</button></div></div>
   </div>
 
   <!-- Intro modal -->
@@ -1193,7 +1208,9 @@ HTML = r'''<!doctype html>
   <!-- ADMIN_UI_END -->
 
   <!-- Notifications -->
+  <!-- PREVIEW_NOTIFICATIONS_START -->
   <div class="notification-panel" id="notificationPanel" aria-label="الإشعارات"><div class="notification-head"><strong>الإشعارات</strong><button type="button" id="markRead">تحديد الكل كمقروء</button></div><div class="notification-item unread"><span class="notification-icon"><span class="icon" data-icon="truck"></span></span><span class="notification-copy"><strong>الفني بالطريق إليك 🚗</strong><p>يوسف من «الفني الماهر» سيصل خلال ١٢ دقيقة.</p><time>منذ ٣ دقائق</time></span></div><div class="notification-item unread"><span class="notification-icon orange"><span class="icon" data-icon="star"></span></span><span class="notification-copy"><strong>رأيك يهمنا ⭐</strong><p>كيف كانت تجربتك مع عزوتك اليوم؟ قيّمي الخدمة الآن.</p><time>منذ ساعة</time></span></div><div class="notification-item"><span class="notification-icon"><span class="icon" data-icon="gift"></span></span><span class="notification-copy"><strong>عرض خاص لك</strong><p>خصم ١٥٪ على أول طلب تنظيف هذا الشهر.</p><time>أمس</time></span></div></div>
+  <!-- PREVIEW_NOTIFICATIONS_END -->
 
   <div class="toast" id="toast" role="status" aria-live="polite"><span class="icon" data-icon="check"></span><span id="toastText">تم حفظ التغييرات</span></div>
 
@@ -1244,7 +1261,10 @@ HTML = r'''<!doctype html>
     const $ = (selector, scope = document) => scope.querySelector(selector);
     const $$ = (selector, scope = document) => [...scope.querySelectorAll(selector)];
     const bookingPrices = { 'صيانة منزلية': '١٥', 'تنظيف وتعقيم': '١٢', 'نقل وشحن': '٢٥', 'كهرباء وسباكة': '١٨', 'دهان وترميم': '٣٥', 'صيانة سيارات': '٢٠', 'حدائق ومسابح': '١٥', 'خدمات المناسبات': '٣٠' };
+    const bookingAmounts = { 'صيانة منزلية': 1500, 'تنظيف وتعقيم': 1200, 'نقل وشحن': 2500, 'كهرباء وسباكة': 1800, 'دهان وترميم': 3500, 'صيانة سيارات': 2000, 'حدائق ومسابح': 1500, 'خدمات المناسبات': 3000 };
+    const serviceSlugs = { 'صيانة منزلية': 'home-maintenance', 'تنظيف وتعقيم': 'cleaning', 'نقل وشحن': 'moving-delivery', 'كهرباء وسباكة': 'electric-plumbing', 'دهان وترميم': 'painting-renovation', 'صيانة سيارات': 'car-maintenance', 'حدائق ومسابح': 'gardens-pools', 'خدمات المناسبات': 'events' };
     let currentService = 'صيانة منزلية';
+    let currentIdempotencyKey = '';
     let introStep = 0;
     let toastTimer;
     let adminCsrfToken = '';
@@ -1259,7 +1279,9 @@ HTML = r'''<!doctype html>
     function switchView(view) {
       $$('.view').forEach(section => section.classList.toggle('active', section.dataset.page === view));
       $$('[data-view]').forEach(button => button.classList.toggle('active', button.dataset.view === view));
-      $('#notificationPanel').classList.remove('open');
+      const notificationPanel = $('#notificationPanel');
+      if (notificationPanel) notificationPanel.classList.remove('open');
+      if (view === 'orders') loadCustomerOrders();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -1299,6 +1321,11 @@ HTML = r'''<!doctype html>
 
     function openBooking(service = 'صيانة منزلية') {
       currentService = service;
+      currentIdempotencyKey = '';
+      $('#bookingLocation').value = '';
+      $('#bookingCity').value = 'amman';
+      $$('.date-option').forEach(item => item.classList.remove('selected'));
+      $('.date-option').classList.add('selected');
       const visual = serviceVisual(service);
       $('#bookingServiceName').textContent = service;
       $('#bookingIcon').className = 'service-icon ' + visual.cls;
@@ -1314,27 +1341,184 @@ HTML = r'''<!doctype html>
 
     function getSelectedTime() {
       const selected = $('.date-option.selected');
-      return selected ? selected.innerText.replace(/\n/g, '، ') : 'اليوم، من ٥ - ٧ م';
+      return selected ? selected.innerText.replace(/\n/g, '، ') : 'اختاري موعداً';
+    }
+    function getScheduleWindow() {
+      const selected = $('.date-option.selected');
+      if (!selected) return null;
+      const start = new Date();
+      start.setDate(start.getDate() + Number(selected.dataset.offset || '0'));
+      start.setHours(Number(selected.dataset.startHour || '12'), 0, 0, 0);
+      const end = new Date(start);
+      end.setHours(Number(selected.dataset.endHour || '14'), 0, 0, 0);
+      return { start: start.toISOString(), end: end.toISOString() };
+    }
+    function cityLabel(city) {
+      return ({ amman: 'عمّان', irbid: 'إربد', zarqa: 'الزرقاء', aqaba: 'العقبة', other: 'محافظة أخرى' })[city] || city;
     }
     $$('.date-option').forEach(option => option.addEventListener('click', () => {
       $$('.date-option').forEach(item => item.classList.remove('selected'));
       option.classList.add('selected');
     }));
     $('#continueBooking').addEventListener('click', () => {
+      const address = $('#bookingLocation').value.trim();
+      if (address.length < 5) {
+        showToast('اكتبي عنواناً واضحاً حتى نرسل الخدمة للمكان الصحيح');
+        $('#bookingLocation').focus();
+        return;
+      }
+      const schedule = getScheduleWindow();
+      if (!schedule) {
+        showToast('اختاري موعداً للخدمة');
+        return;
+      }
       $('#confirmService').textContent = currentService;
-      $('#confirmLocation').textContent = $('#bookingLocation').value || 'الدوار السابع، عمّان';
+      $('#confirmLocation').textContent = address + '، ' + cityLabel($('#bookingCity').value);
       $('#confirmTime').textContent = getSelectedTime();
       $('#confirmPrice').textContent = (bookingPrices[currentService] || '١٥') + ' د.أ';
       $('#bookingFormView').classList.add('hide');
       $('#confirmView').classList.add('show');
     });
     $('#backToBooking').addEventListener('click', () => { $('#confirmView').classList.remove('show'); $('#bookingFormView').classList.remove('hide'); });
-    $('#confirmBooking').addEventListener('click', () => {
+    let lastCreatedOrder = null;
+    function newIdempotencyKey() {
+      if (window.crypto && typeof window.crypto.randomUUID === 'function') return window.crypto.randomUUID();
+      const bytes = new Uint8Array(16);
+      window.crypto.getRandomValues(bytes);
+      return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+    }
+    function showCreatedOrder(order, replayed) {
+      lastCreatedOrder = order;
+      $('#successTitle').textContent = 'تم استلام طلبك';
+      $('#successDescription').textContent = replayed ? 'هذا الطلب محفوظ مسبقاً، لذلك لم ننشئ طلباً مكرراً. الدفع لا يبدأ تلقائياً.' : 'تم حفظ طلبك في عزوتك. سيظهر تعيين مزود الخدمة بعد مراجعة الطلب، ولا توجد عملية دفع تلقائية.';
+      $('#successOrderLabel').textContent = 'رقم الطلب';
+      $('#successOrderId').textContent = order.public_code;
+      closeOverlay('bookingModal');
+      openOverlay('successModal');
+    }
+    function showPreviewBookingNotice() {
       closeOverlay('bookingModal');
       showToast('هذه نسخة معاينة — لم يتم إنشاء حجز أو عملية دفع فعلية');
-    });
-    $('#trackSuccess').addEventListener('click', () => { closeOverlay('successModal'); switchView('orders'); showToast('طلبك جاهز للمتابعة من هنا'); });
+    }
+    async function submitBooking() {
+      const button = $('#confirmBooking');
+      button.disabled = true;
+      try {
+        const statusResponse = await fetch('/api/auth/status', { credentials: 'same-origin' });
+        const status = await statusResponse.json();
+        if (!status.authenticated) {
+          if (status.auth_mode === 'oidc') {
+            window.location.assign('/auth/login');
+          } else {
+            showPreviewBookingNotice();
+          }
+          return;
+        }
+        if (!status.csrf_token) {
+          showToast('تعذر التحقق من جلسة العميل — لم يتم إنشاء الطلب');
+          return;
+        }
+        const address = $('#bookingLocation').value.trim();
+        const schedule = getScheduleWindow();
+        if (!address || !schedule) {
+          showToast('بيانات الطلب غير مكتملة — لم يتم إنشاء الطلب');
+          return;
+        }
+        currentIdempotencyKey = currentIdempotencyKey || newIdempotencyKey();
+        const response = await fetch('/api/orders', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-CSRF-Token': status.csrf_token,
+            'Idempotency-Key': currentIdempotencyKey
+          },
+          credentials: 'same-origin',
+          body: JSON.stringify({
+            service_slug: serviceSlugs[currentService],
+            city: $('#bookingCity').value,
+            address,
+            estimated_amount_minor: bookingAmounts[currentService] || 1500,
+            scheduled_from: schedule.start,
+            scheduled_to: schedule.end
+          })
+        });
+        const result = await response.json();
+        if (response.status === 401 && status.auth_mode === 'oidc') {
+          window.location.assign('/auth/login');
+          return;
+        }
+        if (!response.ok) {
+          const messages = {
+            insufficient_permissions: 'هذا الحساب ليس حساب عميل — لم يتم إنشاء الطلب',
+            data_store_unavailable: 'الخدمة غير متاحة حالياً — لم يتم إنشاء الطلب',
+            invalid_schedule: 'الموعد غير صالح — لم يتم إنشاء الطلب',
+            schedule_out_of_range: 'اختاري موعداً مستقبلياً — لم يتم إنشاء الطلب'
+          };
+          showToast(messages[result.error] || 'تعذر حفظ الطلب — لم يتم إنشاء حجز أو دفع');
+          return;
+        }
+        showCreatedOrder(result.order, Boolean(result.replayed));
+      } catch (errorValue) {
+        showToast('تعذر الاتصال بالخدمة — لم يتم إنشاء حجز أو دفع');
+      } finally {
+        button.disabled = false;
+      }
+    }
+    $('#confirmBooking').addEventListener('click', submitBooking);
+    $('#trackSuccess').addEventListener('click', () => { closeOverlay('successModal'); switchView('orders'); showToast(lastCreatedOrder ? 'تم فتح قائمة طلباتك' : 'هذه المعاينة لا تحتوي على طلبات فعلية'); });
     $('#homeSuccess').addEventListener('click', () => { closeOverlay('successModal'); switchView('home'); });
+
+    async function loadCustomerOrders() {
+      const list = $('#customerOrdersList');
+      const empty = $('#ordersEmptyNotice');
+      if (!list || !empty) return;
+      try {
+        const statusResponse = await fetch('/api/auth/status', { credentials: 'same-origin' });
+        const status = await statusResponse.json();
+        if (!status.authenticated) {
+          if (status.auth_mode === 'local-preview') return;
+          list.replaceChildren();
+          empty.hidden = false;
+          empty.textContent = 'سجّلي الدخول عبر الهوية الآمنة لعرض طلباتك المحفوظة.';
+          return;
+        }
+        const response = await fetch('/api/orders', { credentials: 'same-origin' });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'orders_failed');
+        list.replaceChildren();
+        empty.hidden = result.orders.length > 0;
+        result.orders.forEach(order => {
+          const row = document.createElement('article');
+          row.className = 'order-row';
+          const avatar = document.createElement('div');
+          avatar.className = 'provider-avatar';
+          avatar.textContent = order.service_name_ar.slice(0, 1);
+          const copy = document.createElement('div');
+          copy.className = 'order-row-copy';
+          const service = document.createElement('strong');
+          service.textContent = order.service_name_ar;
+          const code = document.createElement('p');
+          code.textContent = 'طلب عزوتك · #' + order.public_code;
+          copy.append(service, code);
+          const date = document.createElement('div');
+          date.className = 'order-row-date';
+          const when = document.createElement('strong');
+          when.textContent = new Date(order.scheduled_from).toLocaleString('ar-JO', { dateStyle: 'medium', timeStyle: 'short' });
+          const city = document.createElement('span');
+          city.textContent = cityLabel(order.city);
+          date.append(when, city);
+          const status = document.createElement('span');
+          status.className = 'status-pill' + (['completed', 'cancelled'].includes(order.status) ? ' done' : '');
+          status.textContent = ({ requested: 'بانتظار المراجعة', assigned: 'تم تعيين مزود', on_the_way: 'المزود بالطريق', in_progress: 'قيد التنفيذ', completed: 'مكتمل', cancelled: 'ملغى' })[order.status] || order.status;
+          row.append(avatar, copy, date, status);
+          list.append(row);
+        });
+      } catch (errorValue) {
+        list.replaceChildren();
+        empty.hidden = false;
+        empty.textContent = 'تعذر قراءة طلباتك حالياً. لم تتأثر الطلبات المحفوظة.';
+      }
+    }
 
     // Search the home service cards.
     function filterCards(input, cards, empty) {
@@ -1501,9 +1685,11 @@ HTML = r'''<!doctype html>
     $('#phoneInput').addEventListener('input', () => { $('#phoneError').hidden = true; $('#phoneField').classList.remove('invalid'); });
     $('#guestExplore').addEventListener('click', () => { closeOverlay('authModal'); openIntro(); });
 
-    $('#notificationButton').addEventListener('click', event => { event.stopPropagation(); const panel = $('#notificationPanel'); panel.classList.toggle('open'); $('#notificationButton').setAttribute('aria-expanded', panel.classList.contains('open')); });
-    $('#markRead').addEventListener('click', () => { $$('.notification-item').forEach(item => item.classList.remove('unread')); $('.notification-dot').style.display = 'none'; showToast('تم تحديد الإشعارات كمقروءة'); });
-    document.addEventListener('click', event => { if (!event.target.closest('#notificationPanel') && !event.target.closest('#notificationButton')) $('#notificationPanel').classList.remove('open'); });
+    const notificationButton = $('#notificationButton');
+    if (notificationButton) notificationButton.addEventListener('click', event => { event.stopPropagation(); const panel = $('#notificationPanel'); panel.classList.toggle('open'); notificationButton.setAttribute('aria-expanded', panel.classList.contains('open')); });
+    const markReadButton = $('#markRead');
+    if (markReadButton) markReadButton.addEventListener('click', () => { $$('.notification-item').forEach(item => item.classList.remove('unread')); const dot = $('.notification-dot'); if (dot) dot.style.display = 'none'; showToast('تم تحديد الإشعارات كمقروءة'); });
+    document.addEventListener('click', event => { const panel = $('#notificationPanel'); if (panel && !event.target.closest('#notificationPanel') && !event.target.closest('#notificationButton')) panel.classList.remove('open'); });
     $('#locationButton').addEventListener('click', () => showToast('الموقع الحالي: عمّان، الأردن'));
     $$('.filter-pill').forEach(pill => pill.addEventListener('click', () => { $$('.filter-pill').forEach(item => item.classList.remove('active')); pill.classList.add('active'); }));
     $$('.toggle').forEach(toggle => toggle.addEventListener('click', () => { toggle.classList.toggle('on'); showToast(toggle.classList.contains('on') ? 'تم تفعيل التنبيهات' : 'تم إيقاف التنبيهات'); }));
@@ -1520,7 +1706,7 @@ STATIC_ASSETS = {
 }
 
 
-APP_VERSION = '0.12.0'
+APP_VERSION = '0.13.0'
 SERVICE_CATALOG = [
     {'slug': 'home-maintenance', 'name_ar': 'صيانة منزلية', 'name_en': 'Home maintenance', 'minimum_amount_minor': 1500, 'currency': 'JOD'},
     {'slug': 'cleaning', 'name_ar': 'تنظيف وتعقيم', 'name_en': 'Cleaning and sanitization', 'minimum_amount_minor': 1200, 'currency': 'JOD'},
@@ -1538,9 +1724,20 @@ ADMIN_UI_START = '<!-- ADMIN_UI_START -->'
 ADMIN_UI_END = '<!-- ADMIN_UI_END -->'
 PREVIEW_NOTICE_START = '<!-- PREVIEW_NOTICE_START -->'
 PREVIEW_NOTICE_END = '<!-- PREVIEW_NOTICE_END -->'
+CUSTOMER_SAMPLE_ORDERS_START = '<!-- CUSTOMER_SAMPLE_ORDERS_START -->'
+CUSTOMER_SAMPLE_ORDERS_END = '<!-- CUSTOMER_SAMPLE_ORDERS_END -->'
+PREVIEW_NOTIFICATIONS_START = '<!-- PREVIEW_NOTIFICATIONS_START -->'
+PREVIEW_NOTIFICATIONS_END = '<!-- PREVIEW_NOTIFICATIONS_END -->'
+PREVIEW_PAYMENT_START = '<!-- PREVIEW_PAYMENT_START -->'
+PREVIEW_PAYMENT_END = '<!-- PREVIEW_PAYMENT_END -->'
 _rate_buckets = defaultdict(deque)
 _rate_lock = threading.Lock()
 API_BODY_LIMIT = 16 * 1024
+ORDER_KEY_VERSION = 1
+ORDER_CITIES = frozenset({'amman', 'irbid', 'zarqa', 'aqaba', 'other'})
+_IDEMPOTENCY_PATTERN = re.compile(r'^[A-Za-z0-9._:-]{16,128}$')
+_SERVICE_SLUG_PATTERN = re.compile(r'^[a-z0-9][a-z0-9-]{1,79}$')
+_PHONE_PATTERN = re.compile(r'^\+9627[0-9]{8}$')
 IAM = IAMService()
 REQUEST_LIMITER = None
 if os.environ.get('RATE_LIMIT_STORE', os.environ.get('SESSION_STORE', 'memory')).lower() == 'redis':
@@ -1573,6 +1770,97 @@ def remove_marked_blocks(document, start_marker, end_marker):
             break
         document = document[:start_index] + document[end_index + len(end_marker):]
     return document
+
+
+def _encrypt_order_address(address: str) -> tuple[bytes, bytes]:
+    """Encrypt a customer address with the deployment-managed AES-GCM key."""
+    encoded_key = os.environ.get('ORDER_ADDRESS_ENCRYPTION_KEY', '').strip()
+    if not encoded_key:
+        raise RuntimeError('address_encryption_unavailable')
+    try:
+        key = base64.b64decode(encoded_key + '=' * (-len(encoded_key) % 4), altchars=b'-_', validate=True)
+    except (binascii.Error, ValueError, TypeError) as error:
+        raise RuntimeError('address_encryption_unavailable') from error
+    if len(key) != 32:
+        raise RuntimeError('address_encryption_unavailable')
+    try:
+        from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+    except ImportError as error:
+        raise RuntimeError('address_encryption_unavailable') from error
+    nonce = secrets.token_bytes(12)
+    ciphertext = AESGCM(key).encrypt(nonce, address.encode('utf-8'), b'ezwatek-order-address-v1')
+    return ciphertext, nonce
+
+
+def _parse_order_datetime(value: object):
+    if not isinstance(value, str) or not value or len(value) > 80:
+        raise OrderInputError('invalid_schedule')
+    try:
+        parsed = datetime.fromisoformat(value.replace('Z', '+00:00'))
+    except ValueError as error:
+        raise OrderInputError('invalid_schedule') from error
+    if parsed.tzinfo is None or parsed.utcoffset() is None:
+        raise OrderInputError('schedule_timezone_required')
+    return parsed.astimezone(timezone.utc)
+
+
+def _parse_order_request(body: dict, idempotency_key: str) -> dict:
+    if not isinstance(idempotency_key, str) or not _IDEMPOTENCY_PATTERN.fullmatch(idempotency_key):
+        raise OrderInputError('invalid_idempotency_key')
+    service_slug = body.get('service_slug')
+    city = body.get('city')
+    address = body.get('address')
+    if not isinstance(service_slug, str) or not _SERVICE_SLUG_PATTERN.fullmatch(service_slug):
+        raise OrderInputError('invalid_service')
+    if not isinstance(city, str) or city not in ORDER_CITIES:
+        raise OrderInputError('invalid_city')
+    if not isinstance(address, str):
+        raise OrderInputError('address_required')
+    address = address.strip()
+    if not 5 <= len(address) <= 500 or any(ord(char) < 32 for char in address):
+        raise OrderInputError('invalid_address')
+    try:
+        amount = body.get('estimated_amount_minor')
+        if isinstance(amount, bool):
+            raise ValueError
+        amount = int(amount)
+    except (TypeError, ValueError) as error:
+        raise OrderInputError('invalid_amount') from error
+    if amount < 0 or amount > 10_000_000:
+        raise OrderInputError('invalid_amount')
+    scheduled_from = _parse_order_datetime(body.get('scheduled_from'))
+    scheduled_to = _parse_order_datetime(body.get('scheduled_to'))
+    now = datetime.now(timezone.utc)
+    if scheduled_from < now - timedelta(minutes=5) or scheduled_from > now + timedelta(days=90):
+        raise OrderInputError('schedule_out_of_range')
+    duration = scheduled_to - scheduled_from
+    if duration < timedelta(minutes=30) or duration > timedelta(hours=12):
+        raise OrderInputError('invalid_schedule_window')
+    phone = body.get('phone_e164')
+    if phone is not None:
+        if not isinstance(phone, str):
+            raise OrderInputError('invalid_phone')
+        phone = phone.strip()
+        if phone.startswith('07') and len(phone) == 10:
+            phone = '+962' + phone[1:]
+        if not _PHONE_PATTERN.fullmatch(phone):
+            raise OrderInputError('invalid_phone')
+    display_name = body.get('display_name')
+    if display_name is not None:
+        if not isinstance(display_name, str) or not 1 <= len(display_name.strip()) <= 100:
+            raise OrderInputError('invalid_display_name')
+        display_name = display_name.strip()
+    return {
+        'service_slug': service_slug,
+        'city': city,
+        'address': address,
+        'estimated_amount_minor': amount,
+        'scheduled_from': scheduled_from,
+        'scheduled_to': scheduled_to,
+        'phone_e164': phone,
+        'display_name': display_name,
+        'idempotency_key': idempotency_key,
+    }
 
 
 class AppHandler(BaseHTTPRequestHandler):
@@ -1781,6 +2069,68 @@ class AppHandler(BaseHTTPRequestHandler):
                 self._send_json({'error': 'data_store_unavailable'}, 503, include_body, {'Cache-Control': 'no-store'})
             return
 
+        if path == '/api/orders' and method in {'GET', 'HEAD', 'POST'}:
+            session = self._current_session()
+            if not session:
+                self._send_unauthorized(include_body)
+                return
+            required_permission = 'orders:create' if method == 'POST' else 'orders:read'
+            if not can(session.identity, required_permission):
+                self._audit('orders.access.denied', actor=session.identity.username, success=False, details={'permission': required_permission})
+                self._send_forbidden(include_body)
+                return
+            if DATA is None:
+                self._send_json({'error': 'data_store_unavailable'}, 503, include_body, {'Cache-Control': 'no-store'})
+                return
+            try:
+                subject = session.identity.subject or session.identity.username
+                if method in {'GET', 'HEAD'}:
+                    orders = DATA.customer_orders(subject)
+                    self._send_json({'orders': orders}, 200, include_body, {'Cache-Control': 'no-store', 'Vary': 'Cookie'})
+                    return
+                if not IAM.csrf_valid(session, self.headers.get('X-CSRF-Token')):
+                    self._audit('orders.create.csrf_failed', actor=session.identity.username, success=False)
+                    self._send_forbidden()
+                    return
+                body = self._read_json_body()
+                if body is None:
+                    return
+                request = _parse_order_request(body, self.headers.get('Idempotency-Key', ''))
+                ciphertext, nonce = _encrypt_order_address(request.pop('address'))
+                order, replayed = DATA.create_order(
+                    external_subject=subject,
+                    actor_subject=subject,
+                    address_ciphertext=ciphertext,
+                    address_nonce=nonce,
+                    address_key_version=ORDER_KEY_VERSION,
+                    **request,
+                )
+                self._audit(
+                    'orders.create.replayed' if replayed else 'orders.create.succeeded',
+                    actor=session.identity.username,
+                    details={'order': order['public_code'], 'city': order['city']},
+                )
+                headers = {'Cache-Control': 'no-store', 'Vary': 'Cookie'}
+                if replayed:
+                    headers['Idempotency-Replayed'] = 'true'
+                self._send_json({'order': order, 'replayed': replayed}, 200 if replayed else 201, True, headers)
+            except IdempotencyConflict:
+                self._audit('orders.create.idempotency_conflict', actor=session.identity.username, success=False)
+                self._send_json({'error': 'idempotency_key_reused'}, 409, include_body, {'Cache-Control': 'no-store'})
+            except OrderInputError as error:
+                self._audit('orders.create.rejected', actor=session.identity.username, success=False, details={'reason': str(error)})
+                self._send_json({'error': str(error)}, 422, include_body, {'Cache-Control': 'no-store'})
+            except RuntimeError as error:
+                if str(error) == 'address_encryption_unavailable':
+                    self._audit('orders.create.encryption_unavailable', actor=session.identity.username, success=False)
+                    self._send_json({'error': 'data_store_unavailable'}, 503, include_body, {'Cache-Control': 'no-store'})
+                else:
+                    raise
+            except DataStoreError:
+                self._audit('orders.create.failed', actor=session.identity.username, success=False)
+                self._send_json({'error': 'data_store_unavailable'}, 503, include_body, {'Cache-Control': 'no-store'})
+            return
+
         if path == '/api/auth/status' and method in {'GET', 'HEAD'}:
             session = self._current_session()
             payload = {
@@ -1936,6 +2286,9 @@ class AppHandler(BaseHTTPRequestHandler):
             rendered = remove_marked_blocks(rendered, ADMIN_UI_START, ADMIN_UI_END)
         if os.environ.get('APP_ENV', 'development').lower() == 'production':
             rendered = remove_marked_blocks(rendered, PREVIEW_NOTICE_START, PREVIEW_NOTICE_END)
+            rendered = remove_marked_blocks(rendered, CUSTOMER_SAMPLE_ORDERS_START, CUSTOMER_SAMPLE_ORDERS_END)
+            rendered = remove_marked_blocks(rendered, PREVIEW_NOTIFICATIONS_START, PREVIEW_NOTIFICATIONS_END)
+            rendered = remove_marked_blocks(rendered, PREVIEW_PAYMENT_START, PREVIEW_PAYMENT_END)
         self._send_payload(rendered.encode('utf-8'), 'text/html; charset=utf-8', 200, include_body, nonce=nonce)
 
     def do_GET(self):

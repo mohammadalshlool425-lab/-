@@ -72,6 +72,7 @@ ROLE_PERMISSIONS = {
 class Identity:
     username: str
     roles: tuple[str, ...]
+    subject: str | None = None
 
     @property
     def permissions(self) -> frozenset[str]:
@@ -464,6 +465,7 @@ class RedisSessionStore:
             'token': session.token,
             'csrf_token': session.csrf_token,
             'username': session.identity.username,
+            'subject': session.identity.subject,
             'roles': list(session.identity.roles),
             'created_at': session.created_at,
             'expires_at': session.expires_at,
@@ -475,7 +477,7 @@ class RedisSessionStore:
         return Session(
             token=str(data['token']),
             csrf_token=str(data['csrf_token']),
-            identity=Identity(str(data['username']), tuple(str(role) for role in data['roles'])),
+            identity=Identity(str(data['username']), tuple(str(role) for role in data['roles']), str(data['subject']) if data.get('subject') else None),
             created_at=float(data['created_at']),
             expires_at=float(data['expires_at']),
         )

@@ -71,6 +71,7 @@ export DATABASE_URL=postgresql://...
 export WAF_MODE=managed
 export ENABLE_HSTS=1
 export ADMIN_UI_ENABLED=1
+export ORDER_ADDRESS_ENCRYPTION_KEY=inject-base64url-32-byte-key-from-secret-manager
 ```
 
 ضع القيم في Secret Manager أو ملف خدمة محمي، ولا تضع `OIDC_CLIENT_SECRET` أو `DATABASE_URL` في Git.
@@ -86,6 +87,9 @@ export ADMIN_UI_ENABLED=1
 التطبيق يوفر endpoints داخلية:
 
 - `GET /api/auth/status`
+- `GET /api/services` يقرأ الكتالوج النشط من PostgreSQL في production.
+- `GET /api/orders` يتطلب دور العميل ويعيد طلباته فقط.
+- `POST /api/orders` يتطلب دور العميل و`X-CSRF-Token` و`Idempotency-Key`؛ العنوان يُشفّر قبل التخزين، ولا يبدأ الدفع تلقائياً.
 - عند `IAM_MODE=local` للانتقال فقط: `POST /api/auth/login` ويتطلب username/password/MFA code.
 - عند `IAM_MODE=oidc`: `GET /auth/login` يبدأ Authorization Code + PKCE، و`GET /auth/callback` يتحقق من state/nonce وID token ثم ينشئ جلسة مشتركة.
 - `POST /api/auth/login` لا يعود إلى IAM المحلي عند وضع OIDC؛ يعيد `oidc_required` مع رابط بدء الدخول.

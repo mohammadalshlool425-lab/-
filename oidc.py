@@ -270,7 +270,7 @@ class OIDCClient:
         roles = _roles_from_claims(claims, self.config)
         if not roles:
             raise OIDCError("OIDC identity has no mapped application role")
-        return Identity(username, roles)
+        return Identity(username, roles, subject=claims["sub"])
 
     def _get_discovery(self) -> dict:
         now = time.time()
