@@ -14,7 +14,9 @@ python scripts/migrate.py --dry-run
 للتشغيل اليدوي لمرة واحدة:
 
 ```bash
-psql "$DATABASE_URL" --set ON_ERROR_STOP=1 --single-transaction -f db/migrations/0001_initial.sql
+for migration in db/migrations/*.sql; do
+  psql "$DATABASE_URL" --set ON_ERROR_STOP=1 --single-transaction -f "$migration"
+done
 ```
 
 استخدم اتصالاً مشفراً إلى PostgreSQL، وحساب migration منفصلاً عن حساب التطبيق. حساب runtime يحتاج فقط صلاحيات DML محددة على الجداول المطلوبة ولا يملك `CREATE`, `ALTER`, أو `DROP`.

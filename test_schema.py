@@ -2,7 +2,9 @@ from pathlib import Path
 import unittest
 
 
-SCHEMA = Path(__file__).parent / 'db' / 'migrations' / '0001_initial.sql'
+MIGRATIONS = Path(__file__).parent / 'db' / 'migrations'
+SCHEMA = MIGRATIONS / '0001_initial.sql'
+CATALOG = MIGRATIONS / '0002_seed_service_catalog.sql'
 
 
 class SchemaSafetyTests(unittest.TestCase):
@@ -10,6 +12,16 @@ class SchemaSafetyTests(unittest.TestCase):
         sql = SCHEMA.read_text(encoding='utf-8')
         self.assertTrue(sql.startswith('-- عزوتك'))
         self.assertNotIn('DROP TABLE', sql.upper())
+        self.assertNotIn('COMMIT;', sql)
+
+    def test_catalog_seed_is_public_and_idempotent(self):
+        sql = CATALOG.read_text(encoding='utf-8')
+        self.assertIn("'JOD'", sql)
+        self.assertIn("ON CONFLICT (slug) DO UPDATE", sql)
+        self.assertIn('cleaning', sql)
+        self.assertNotIn('INSERT INTO app_users', sql)
+        self.assertNotIn('INSERT INTO orders', sql)
+        self.assertNotIn('INSERT INTO payments', sql)
         self.assertNotIn('COMMIT;', sql)
 
     def test_schema_contains_core_entities_and_safety_constraints(self):
