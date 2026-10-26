@@ -52,9 +52,11 @@ python -m py_compile app.py
 - `scripts/bootstrap_iam.py`: إنشاء hash كلمة المرور وTOTP secret دون حفظ الأسرار في المستودع.
 - `deploy/`: قوالب Reverse Proxy وTLS وWAF edge لـ Nginx وCaddy، ووحدة systemd غير root.
 - `.env.example`: أسماء إعدادات IAM بدون أسرار حقيقية.
-- `test_app.py` و`test_security.py`: اختبارات الرؤوس، CSP nonce، IAM، MFA، الجلسات والمسارات.
+- `test_app.py` و`test_security.py` و`test_schema.py`: اختبارات الرؤوس، CSP nonce، IAM، MFA، الجلسات، المسارات ومخطط قاعدة البيانات.
 - `BRANDING.md`: خيارات اسم المنصة ومعايير الاختيار داخل السوق الأردني.
 - `ROADMAP.md`: مراحل نقل النموذج إلى IAM/OIDC وبيانات وتشغيل إنتاجي.
+- `db/migrations/0001_initial.sql`: مخطط PostgreSQL للحجوزات والمزودين والمدفوعات والتدقيق.
+- `db/README.md`: حدود الصلاحيات والنسخ الاحتياطي وتشفير البيانات.
 - `.github/workflows/quality-security.yml`: اختبارات CI وCodeQL وDependency Review.
 - `.github/dependabot.yml`: تحديثات أسبوعية لإجراءات GitHub.
 

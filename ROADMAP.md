@@ -39,7 +39,7 @@
 
 ## المرحلة 3 — البيانات والعمليات الحقيقية
 
-- PostgreSQL migrations مع Alembic.
+- PostgreSQL migrations مع Alembic؛ schema أولي مضبوط موجود في `db/migrations/0001_initial.sql`.
 - Redis للجلسات، queues، idempotency، وrate limiting الموزع.
 - نموذج مستخدمين، مزودين، خدمات، حجوزات، مدفوعات، وتقييمات.
 - سجل تدقيق append-only مع retention ونسخ احتياطية مشفرة.

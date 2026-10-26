@@ -21,6 +21,7 @@
 - سجل تدقيق runtime محدود ومُنقّح مع endpoint محمي `GET /api/admin/audit`; يجب بثه إلى مخزن append-only قبل الإنتاج.
 - قوالب Reverse Proxy في `deploy/` لـ Nginx وCaddy، مع TLS حديث، rate limiting، وحدود حجم الطلب.
 - GitHub Actions مع اختبارات متعددة لإصدارات Python، CodeQL، ومراجعة تغييرات الاعتماديات.
+- مخطط PostgreSQL يفرض JOD، idempotency، تشفير العناوين على مستوى التطبيق، وحدوداً منفصلة للتدقيق.
 
 ## IAM الحالي
 
