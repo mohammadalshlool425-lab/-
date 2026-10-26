@@ -20,6 +20,7 @@
 - أساس IAM محلي اختياري: scrypt لكلمات المرور، TOTP متوافق مع RFC 6238، جلسات HttpOnly، CSRF token، وRBAC بالـ permissions.
 - سجل تدقيق runtime محدود ومُنقّح مع endpoint محمي `GET /api/admin/audit`; يجب بثه إلى مخزن append-only قبل الإنتاج.
 - قوالب Reverse Proxy في `deploy/` لـ Nginx وCaddy، مع TLS حديث، rate limiting، وحدود حجم الطلب.
+- GitHub Actions مع اختبارات متعددة لإصدارات Python، CodeQL، ومراجعة تغييرات الاعتماديات.
 
 ## IAM الحالي
 

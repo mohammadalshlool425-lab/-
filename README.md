@@ -55,5 +55,7 @@ python -m py_compile app.py
 - `test_app.py` و`test_security.py`: اختبارات الرؤوس، CSP nonce، IAM، MFA، الجلسات والمسارات.
 - `BRANDING.md`: خيارات اسم المنصة ومعايير الاختيار داخل السوق الأردني.
 - `ROADMAP.md`: مراحل نقل النموذج إلى IAM/OIDC وبيانات وتشغيل إنتاجي.
+- `.github/workflows/quality-security.yml`: اختبارات CI وCodeQL وDependency Review.
+- `.github/dependabot.yml`: تحديثات أسبوعية لإجراءات GitHub.
 
 > لوحة الإدارة الحالية نموذج UI تفاعلي وليست نظام IAM. يجب ربطها بمصادقة حقيقية وMFA وRBAC وWAF قبل الإنتاج.

@@ -1,0 +1,65 @@
+name: Quality and security
+
+on:
+  push:
+    branches: ["main", "arena/**"]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  tests:
+    name: Python ${{ matrix.python-version }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13", "3.14"]
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.1
+      - name: Set up Python
+        uses: actions/setup-python@v7.1.0
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Compile source
+        run: python -m py_compile app.py security.py scripts/bootstrap_iam.py
+      - name: Run tests
+        run: python -m unittest -v
+      - name: Check whitespace
+        run: git diff --check
+
+  codeql:
+    name: CodeQL Python analysis
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.1
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v4.39.1
+        with:
+          languages: python
+      - name: Analyze
+        uses: github/codeql-action/analyze@v4.39.1
+        with:
+          category: "/language:python"
+
+  dependency-review:
+    name: Dependency review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@v5.0.0
+        with:
+          fail-on-severity: high
