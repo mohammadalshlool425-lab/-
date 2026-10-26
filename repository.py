@@ -99,13 +99,13 @@ class PostgresRepository:
         limit = max(1, min(int(limit), 100))
         rows = self._fetchall("""
             SELECT event_id, EXTRACT(EPOCH FROM created_at)::bigint, action,
-                   actor_subject, outcome, client_fingerprint, metadata
+                   actor_subject, outcome, client_fingerprint, request_id, metadata
             FROM audit_events
             ORDER BY created_at DESC
             LIMIT %s
         """, (limit,))
         events = []
-        for event_id, timestamp, action, actor, outcome, fingerprint, metadata in rows:
+        for event_id, timestamp, action, actor, outcome, fingerprint, request_id, metadata in rows:
             events.append({
                 "event_id": str(event_id),
                 "timestamp": int(timestamp),
@@ -113,6 +113,7 @@ class PostgresRepository:
                 "actor": str(actor) if actor else None,
                 "success": outcome == "success",
                 "client_fingerprint": str(fingerprint) if fingerprint else None,
+                "request_id": str(request_id) if request_id else None,
                 "details": metadata if isinstance(metadata, dict) else {},
             })
         return events
@@ -122,8 +123,8 @@ class PostgresRepository:
         self._execute(
             """
             INSERT INTO audit_events
-                (event_id, actor_subject, action, outcome, client_fingerprint, metadata)
-            VALUES (%s, %s, %s, %s, %s, %s::jsonb)
+                (event_id, actor_subject, action, outcome, client_fingerprint, request_id, metadata)
+            VALUES (%s, %s, %s, %s, %s, %s, %s::jsonb)
             """,
             (
                 event.get("event_id"),
@@ -131,6 +132,7 @@ class PostgresRepository:
                 event.get("action"),
                 outcome,
                 event.get("client_fingerprint"),
+                event.get("request_id"),
                 json.dumps(event.get("details") or {}, ensure_ascii=False, separators=(",", ":")),
             ),
         )

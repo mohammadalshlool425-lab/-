@@ -1564,6 +1564,16 @@ class AppHandler(BaseHTTPRequestHandler):
         # Do not trust a user-controlled X-Forwarded-For header by default.
         return self.client_address[0] if self.client_address else 'unknown'
 
+    def _request_id(self):
+        request_id = getattr(self, '_request_id_value', None)
+        if request_id is None:
+            request_id = secrets.token_hex(12)
+            self._request_id_value = request_id
+        return request_id
+
+    def _audit(self, action, actor=None, success=True, details=None):
+        IAM.audit_log.record(action, actor=actor, success=success, client_ip=self._client_ip(), details=details, request_id=self._request_id())
+
     def _rate_allowed(self):
         now = time.monotonic()
         ip = self._client_ip()
@@ -1616,7 +1626,7 @@ class AppHandler(BaseHTTPRequestHandler):
             'X-Permitted-Cross-Domain-Policies': 'none',
             'Cache-Control': 'no-store, max-age=0',
             'Pragma': 'no-cache',
-            'X-Request-ID': secrets.token_hex(12),
+            'X-Request-ID': self._request_id(),
         }
         if production:
             headers['X-Frame-Options'] = 'DENY'
@@ -1700,7 +1710,7 @@ class AppHandler(BaseHTTPRequestHandler):
         try:
             location = OIDC.authorization_url()
         except OIDCError:
-            IAM.audit_log.record('auth.oidc.authorization_failed', success=False, client_ip=self._client_ip())
+            self._audit('auth.oidc.authorization_failed', success=False)
             self._send_json({'error': 'identity_provider_unavailable'}, 503, include_body, {'Cache-Control': 'no-store'})
             return
         self._send_payload(b'', 'text/plain; charset=utf-8', 303, False, {'Location': location, 'Cache-Control': 'no-store'})
@@ -1711,17 +1721,17 @@ class AppHandler(BaseHTTPRequestHandler):
             return
         query = parse_qs(urlsplit(self.path or '').query, keep_blank_values=True)
         if query.get('error') or not query.get('code') or not query.get('state'):
-            IAM.audit_log.record('auth.oidc.callback_rejected', success=False, client_ip=self._client_ip())
+            self._audit('auth.oidc.callback_rejected', success=False)
             self._send_json({'error': 'authentication_failed'}, 401, include_body, {'Cache-Control': 'no-store'})
             return
         try:
             identity = OIDC.authenticate_callback(query['code'][0], query['state'][0])
             session = IAM.sessions.create(identity)
         except OIDCError:
-            IAM.audit_log.record('auth.oidc.callback_failed', success=False, client_ip=self._client_ip())
+            self._audit('auth.oidc.callback_failed', success=False)
             self._send_json({'error': 'authentication_failed'}, 401, include_body, {'Cache-Control': 'no-store'})
             return
-        IAM.audit_log.record('auth.oidc.login_succeeded', actor=identity.username, success=True, client_ip=self._client_ip(), details={'roles': ','.join(identity.roles)})
+        self._audit('auth.oidc.login_succeeded', actor=identity.username, details={'roles': ','.join(identity.roles)})
         headers = {
             'Location': '/',
             'Set-Cookie': IAM.session_cookie(session, self._is_secure_request()),
@@ -1760,7 +1770,7 @@ class AppHandler(BaseHTTPRequestHandler):
             if not isinstance(username, str) or not isinstance(password, str) or not isinstance(mfa_code, str):
                 self._send_json({'error': 'invalid_credentials'}, 401, True, {'Cache-Control': 'no-store'})
                 return
-            session, reason = IAM.login(username, password, mfa_code, self._client_ip())
+            session, reason = IAM.login(username, password, mfa_code, self._client_ip(), request_id=self._request_id())
             if reason == 'rate_limited':
                 self._send_json({'error': 'too_many_login_attempts'}, 429, True, {'Retry-After': '300', 'Cache-Control': 'no-store'})
                 return
@@ -1784,11 +1794,11 @@ class AppHandler(BaseHTTPRequestHandler):
                 self._send_unauthorized()
                 return
             if not IAM.csrf_valid(session, self.headers.get('X-CSRF-Token')):
-                IAM.audit_log.record('auth.logout.csrf_failed', actor=session.identity.username, success=False, client_ip=self._client_ip())
+                self._audit('auth.logout.csrf_failed', actor=session.identity.username, success=False)
                 self._send_forbidden()
                 return
             IAM.sessions.revoke(session.token)
-            IAM.audit_log.record('auth.logout', actor=session.identity.username, success=True, client_ip=self._client_ip())
+            self._audit('auth.logout', actor=session.identity.username)
             headers = {'Set-Cookie': IAM.clear_cookies(self._is_secure_request()), 'Cache-Control': 'no-store'}
             self._send_json({'authenticated': False}, 200, include_body, headers)
             return
@@ -1802,14 +1812,14 @@ class AppHandler(BaseHTTPRequestHandler):
             else:
                 required_permission = 'admin:read'
             if not session:
-                IAM.audit_log.record('admin.access.unauthenticated', success=False, client_ip=self._client_ip(), details={'resource': path})
+                self._audit('admin.access.unauthenticated', success=False, details={'resource': path})
                 self._send_unauthorized(include_body)
                 return
             if not can(session.identity, required_permission):
-                IAM.audit_log.record('admin.access.denied', actor=session.identity.username, success=False, client_ip=self._client_ip(), details={'resource': path, 'permission': required_permission})
+                self._audit('admin.access.denied', actor=session.identity.username, success=False, details={'resource': path, 'permission': required_permission})
                 self._send_forbidden(include_body)
                 return
-            IAM.audit_log.record('admin.access.granted', actor=session.identity.username, success=True, client_ip=self._client_ip(), details={'resource': path})
+            self._audit('admin.access.granted', actor=session.identity.username, details={'resource': path})
             try:
                 if DATA is None:
                     if os.environ.get('APP_ENV', 'development').lower() == 'production':
@@ -1915,7 +1925,7 @@ class AppHandler(BaseHTTPRequestHandler):
         status = args[1] if len(args) > 1 else '-'
         path = self._request_path()
         safe_path = path if path in {'/', '/health'} else '<other>'
-        print(f"{self._client_ip()} {status} {safe_path}")
+        print(f"{self._request_id()} {self._client_ip()} {status} {safe_path}")
 
 
 if __name__ == '__main__':

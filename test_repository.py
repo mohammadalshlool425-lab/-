@@ -32,7 +32,7 @@ class FakeConnection:
         if 'FROM audit_events' in sql and 'COUNT' in sql:
             return FakeResult((3,))
         if 'FROM audit_events' in sql:
-            return FakeResult(many=[('event-1', 1700000000, 'auth.login', 'admin', 'success', 'fingerprint', {'reason': 'ok'})])
+            return FakeResult(many=[('event-1', 1700000000, 'auth.login', 'admin', 'success', 'fingerprint', 'request-1', {'reason': 'ok'})])
         return FakeResult((1,))
 
 
@@ -64,6 +64,7 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual(self.repository.admin_security()['blocked_attempts'], 3)
         events = self.repository.recent_audit()
         self.assertEqual(events[0]['action'], 'auth.login')
+        self.assertEqual(events[0]['request_id'], 'request-1')
         self.assertEqual(events[0]['details'], {'reason': 'ok'})
 
     def test_audit_write_uses_parameterized_query(self):

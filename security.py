@@ -103,7 +103,7 @@ class AuditLog:
             self._sink = sink
             self._sink_required = required
 
-    def record(self, action: str, actor: str | None = None, success: bool = True, client_ip: str | None = None, details: dict | None = None) -> None:
+    def record(self, action: str, actor: str | None = None, success: bool = True, client_ip: str | None = None, details: dict | None = None, request_id: str | None = None) -> None:
         clean_details = {}
         for key, value in (details or {}).items():
             clean_key = str(key).replace('\n', ' ').replace('\r', ' ')[:40]
@@ -116,6 +116,7 @@ class AuditLog:
             'actor': str(actor).replace('\n', ' ').replace('\r', ' ')[:80] if actor else None,
             'success': bool(success),
             'client_fingerprint': hashlib.sha256((self._redaction_key + (client_ip or 'unknown')).encode('utf-8')).hexdigest()[:16],
+            'request_id': str(request_id).replace('\n', ' ').replace('\r', ' ')[:80] if request_id else None,
             'details': clean_details,
         }
         with self._lock:
@@ -506,9 +507,9 @@ class IAMService:
         normalized = username.strip()
         return normalized if USERNAME_RE.fullmatch(normalized) else ""
 
-    def authenticate(self, username: str, password: str, mfa_code: str, client_key: str) -> tuple[Identity | None, str]:
+    def authenticate(self, username: str, password: str, mfa_code: str, client_key: str, request_id: str | None = None) -> tuple[Identity | None, str]:
         if not self.login_throttle.allowed(client_key):
-            self.audit_log.record('auth.login.rate_limited', success=False, client_ip=client_key)
+            self.audit_log.record('auth.login.rate_limited', success=False, client_ip=client_key, request_id=request_id)
             return None, "rate_limited"
         configured_username, password_hash, totp_secret, roles = self._configured_identity()
         normalized_username = self._normalize_username(username)
@@ -521,15 +522,15 @@ class IAMService:
             mfa_ok = True
         if not (username_ok and password_ok and mfa_ok and roles):
             self.login_throttle.failure(client_key)
-            self.audit_log.record('auth.login.failed', actor=normalized_username or None, success=False, client_ip=client_key, details={'reason': 'invalid_credentials'})
+            self.audit_log.record('auth.login.failed', actor=normalized_username or None, success=False, client_ip=client_key, details={'reason': 'invalid_credentials'}, request_id=request_id)
             return None, "invalid_credentials"
         self.login_throttle.success(client_key)
         identity = Identity(normalized_username, roles)
-        self.audit_log.record('auth.login.succeeded', actor=identity.username, success=True, client_ip=client_key, details={'roles': ','.join(identity.roles)})
+        self.audit_log.record('auth.login.succeeded', actor=identity.username, success=True, client_ip=client_key, details={'roles': ','.join(identity.roles)}, request_id=request_id)
         return identity, "ok"
 
-    def login(self, username: str, password: str, mfa_code: str, client_key: str) -> tuple[Session | None, str]:
-        identity, reason = self.authenticate(username, password, mfa_code, client_key)
+    def login(self, username: str, password: str, mfa_code: str, client_key: str, request_id: str | None = None) -> tuple[Session | None, str]:
+        identity, reason = self.authenticate(username, password, mfa_code, client_key, request_id=request_id)
         return (self.sessions.create(identity), reason) if identity else (None, reason)
 
     def session_from_cookie(self, cookie_header: str | None) -> Session | None:
