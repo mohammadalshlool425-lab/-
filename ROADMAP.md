@@ -40,7 +40,7 @@
 ## المرحلة 3 — البيانات والعمليات الحقيقية
 
 - PostgreSQL migrations مع Alembic؛ schema أولي مضبوط موجود في `db/migrations/0001_initial.sql`.
-- Redis للجلسات، queues، idempotency، وrate limiting الموزع؛ Redis session adapter متوفر، ويبقى ربط البيئة الخارجية مطلوباً.
+- Redis للجلسات، queues، idempotency، وrate limiting الموزع؛ Redis session adapter وlogin throttle متوفران، ويبقى ربط البيئة الخارجية مطلوباً.
 - نموذج مستخدمين، مزودين، خدمات، حجوزات، مدفوعات، وتقييمات.
 - سجل تدقيق append-only مع retention ونسخ احتياطية مشفرة.
 - منع تكرار الحجز والدفع عبر idempotency keys.

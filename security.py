@@ -269,6 +269,58 @@ class LoginThrottle:
             self._locked_until.pop(key, None)
 
 
+class RedisLoginThrottle:
+    """Redis-backed login limiter using atomic counters and short-lived keys."""
+
+    def __init__(self, url: str | None = None, max_failures: int = 5, window_seconds: int = 300, lockout_seconds: int = 300, client=None):
+        self.max_failures = max_failures
+        self.window_seconds = window_seconds
+        self.lockout_seconds = lockout_seconds
+        self.prefix = 'ezwatek:login:'
+        if client is not None:
+            self.client = client
+            return
+        if not url:
+            raise RuntimeError('REDIS_URL is required when RATE_LIMIT_STORE=redis')
+        try:
+            import redis
+        except ImportError as error:
+            raise RuntimeError('Install requirements-production.txt for Redis rate limiting') from error
+        kwargs = {'decode_responses': True, 'socket_timeout': 3, 'health_check_interval': 30}
+        if url.startswith('rediss://'):
+            kwargs['ssl_cert_reqs'] = 'required'
+        self.client = redis.Redis.from_url(url, **kwargs)
+        self.client.ping()
+
+    def _digest(self, key: str) -> str:
+        return hashlib.sha256(str(key).encode('utf-8')).hexdigest()
+
+    def _failure_key(self, key: str) -> str:
+        return self.prefix + 'fail:' + self._digest(key)
+
+    def _lock_key(self, key: str) -> str:
+        return self.prefix + 'lock:' + self._digest(key)
+
+    def allowed(self, key: str, now: float | None = None) -> bool:
+        del now  # Redis provides the authoritative clock for expiry.
+        if self.client.exists(self._lock_key(key)):
+            return False
+        count = self.client.get(self._failure_key(key))
+        return count is None or int(count) < self.max_failures
+
+    def failure(self, key: str, now: float | None = None) -> None:
+        del now
+        failure_key = self._failure_key(key)
+        count = int(self.client.incr(failure_key))
+        if count == 1:
+            self.client.expire(failure_key, self.window_seconds)
+        if count >= self.max_failures:
+            self.client.setex(self._lock_key(key), self.lockout_seconds, '1')
+
+    def success(self, key: str) -> None:
+        self.client.delete(self._failure_key(key), self._lock_key(key))
+
+
 class SessionStore:
     """Opaque, expiring sessions with a separate CSRF token.
 
@@ -399,13 +451,20 @@ class IAMService:
 
     def __init__(self):
         session_store = os.environ.get('SESSION_STORE', 'memory').lower()
+        redis_url = os.environ.get('REDIS_URL')
         if session_store == 'redis':
-            self.sessions = RedisSessionStore(os.environ.get('REDIS_URL'))
+            self.sessions = RedisSessionStore(redis_url)
         elif session_store == 'memory':
             self.sessions = SessionStore()
         else:
             raise RuntimeError('SESSION_STORE must be memory or redis')
-        self.login_throttle = LoginThrottle()
+        rate_limit_store = os.environ.get('RATE_LIMIT_STORE', session_store).lower()
+        if rate_limit_store == 'redis':
+            self.login_throttle = RedisLoginThrottle(redis_url)
+        elif rate_limit_store == 'memory':
+            self.login_throttle = LoginThrottle()
+        else:
+            raise RuntimeError('RATE_LIMIT_STORE must be memory or redis')
         self.audit_log = AuditLog()
         self._dummy_hash = hash_password("not-a-real-password-constant")
 

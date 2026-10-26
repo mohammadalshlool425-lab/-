@@ -2,24 +2,49 @@ import base64
 import os
 import unittest
 
-from security import AuditLog, IAMService, Identity, RedisSessionStore, SessionStore, can, generate_totp_secret, hash_password, totp_code, verify_password, verify_totp
+from security import AuditLog, IAMService, Identity, RedisLoginThrottle, RedisSessionStore, SessionStore, can, generate_totp_secret, hash_password, totp_code, verify_password, verify_totp
 
 
 class FakeRedis:
     def __init__(self):
         self.values = {}
+        self.expiries = {}
 
     def setex(self, key, ttl, value):
         self.values[key] = value
+        self.expiries[key] = ttl
 
     def get(self, key):
         return self.values.get(key)
 
-    def delete(self, key):
-        self.values.pop(key, None)
+    def exists(self, key):
+        return int(key in self.values)
+
+    def incr(self, key):
+        self.values[key] = str(int(self.values.get(key, 0)) + 1)
+        return int(self.values[key])
+
+    def expire(self, key, ttl):
+        self.expiries[key] = ttl
+
+    def delete(self, *keys):
+        for key in keys:
+            self.values.pop(key, None)
+            self.expiries.pop(key, None)
 
 
 class SecurityPrimitiveTests(unittest.TestCase):
+    def test_redis_login_throttle_locks_and_clears(self):
+        client = FakeRedis()
+        throttle = RedisLoginThrottle(client=client, max_failures=2, window_seconds=60, lockout_seconds=30)
+        self.assertTrue(throttle.allowed('same-client'))
+        throttle.failure('same-client', now=100)
+        self.assertTrue(throttle.allowed('same-client'))
+        throttle.failure('same-client', now=101)
+        self.assertFalse(throttle.allowed('same-client'))
+        throttle.success('same-client')
+        self.assertTrue(throttle.allowed('same-client'))
+
     def test_redis_sessions_round_trip_and_revoke(self):
         store = RedisSessionStore(client=FakeRedis(), ttl_seconds=60)
         identity = Identity('owner', ('owner',))

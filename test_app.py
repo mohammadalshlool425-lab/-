@@ -40,7 +40,7 @@ class AppSecurityTests(unittest.TestCase):
     def test_security_headers_are_present(self):
         response = self.fetch('/health')
         self.assertEqual(response.status, 200)
-        self.assertIn('"version":"0.7.0"', response.read().decode('utf-8'))
+        self.assertIn('"version":"0.7.1"', response.read().decode('utf-8'))
         self.assertEqual(response.headers['X-Content-Type-Options'], 'nosniff')
         self.assertEqual(response.headers['Referrer-Policy'], 'no-referrer')
         self.assertEqual(response.headers['Cache-Control'], 'no-store, max-age=0')
