@@ -1510,7 +1510,7 @@ STATIC_ASSETS = {
 }
 
 
-APP_VERSION = '0.9.0'
+APP_VERSION = '0.10.0'
 MAX_PATH_LENGTH = 2048
 RATE_LIMIT_WINDOW = 60
 RATE_LIMIT_MAX_REQUESTS = 180
@@ -1942,8 +1942,9 @@ if __name__ == '__main__':
         print('PostgreSQL initialization rejected: production data store is unavailable.')
         raise SystemExit(78)
     port = int(os.environ.get('PORT', '8000'))
-    server = ThreadingHTTPServer(('0.0.0.0', port), AppHandler)
-    print(f'عزوتك is running on http://0.0.0.0:{port}')
+    bind_host = os.environ.get('BIND_HOST', '127.0.0.1')
+    server = ThreadingHTTPServer((bind_host, port), AppHandler)
+    print(f'عزوتك is running on http://{bind_host}:{port}')
     try:
         server.serve_forever()
     except KeyboardInterrupt:

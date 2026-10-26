@@ -6,12 +6,11 @@ SCHEMA = Path(__file__).parent / 'db' / 'migrations' / '0001_initial.sql'
 
 
 class SchemaSafetyTests(unittest.TestCase):
-    def test_initial_schema_exists_and_is_transactional(self):
+    def test_initial_schema_exists_without_destructive_operations(self):
         sql = SCHEMA.read_text(encoding='utf-8')
         self.assertTrue(sql.startswith('-- عزوتك'))
-        self.assertIn('BEGIN;', sql)
-        self.assertIn('COMMIT;', sql)
         self.assertNotIn('DROP TABLE', sql.upper())
+        self.assertNotIn('COMMIT;', sql)
 
     def test_schema_contains_core_entities_and_safety_constraints(self):
         sql = SCHEMA.read_text(encoding='utf-8')

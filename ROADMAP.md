@@ -55,8 +55,8 @@
 
 ## المرحلة 5 — الجودة والمراقبة
 
-- unit/integration/e2e tests وcontract tests للـ API.
-- SAST وSCA وDAST وdependency update automation.
+- unit/integration/e2e tests وcontract tests للـ API؛ الاختبارات الحالية تغطي HTTP وsecurity primitives وrepositories وOIDC وqueues.
+- SAST وSCA وCodeQL وdependency update automation مفعلة؛ DAST وload testing الفعليان متبقيان بعد تشغيل staging خلف WAF.
 - load test للحجز وتسجيل الدخول.
 - OpenTelemetry، metrics، structured logs، alerts، وincident runbooks.
 - اختبار استعادة النسخ الاحتياطية وخطة disaster recovery.

@@ -8,6 +8,18 @@
 المستخدم -> CDN/WAF -> Nginx أو Caddy -> 127.0.0.1:8000 -> عزوتك
 ```
 
+## تشغيل حاوية غير root
+
+`deploy/Dockerfile` يبني صورة تشغيلية بمستخدم UID `10001`، ولا ينسخ `.env` أو أسراراً إلى الصورة. مرّر الإعدادات من Secret Manager عند التشغيل، ولا تستخدم `--env-file` من مستودع Git:
+
+```bash
+docker build --file deploy/Dockerfile --tag ezwatek:production .
+docker run --rm --read-only --cap-drop=ALL --security-opt=no-new-privileges \
+  --env-file /etc/ezwatek/ezwatek.env -p 127.0.0.1:8000:8000 ezwatek:production
+```
+
+في production يجب أن تحتوي البيئة على إعدادات OIDC وPostgreSQL وRedis المطلوبة؛ الصورة سترفض البدء عند غيابها.
+
 ## خدمة النظام
 
 `ezwatek.service` يشغّل العملية كمستخدم غير root مع sandboxing أساسي. عدّل `WorkingDirectory` و`ExecStart` وملف `EnvironmentFile` حسب المسار الفعلي، ثم:
@@ -90,6 +102,8 @@ export ADMIN_UI_ENABLED=1
 
 ```bash
 python scripts/validate_production_config.py --json
+python scripts/migrate.py --dry-run
+python scripts/load_smoke.py --url http://127.0.0.1:8000/health --requests 100 --concurrency 10
 python -m unittest -v
 python -m py_compile app.py security.py jobs.py worker.py
 nginx -t                 # عند استخدام Nginx

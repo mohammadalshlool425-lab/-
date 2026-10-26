@@ -1,7 +1,5 @@
 -- عزوتك production schema, migration 0001.
 -- Run with a migration role over TLS. The application role must not own this schema.
-BEGIN;
-
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 CREATE TABLE IF NOT EXISTS app_users (
@@ -155,5 +153,3 @@ COMMENT ON COLUMN orders.address_ciphertext IS 'Application-encrypted address; n
 COMMENT ON COLUMN orders.idempotency_key IS 'Client-generated key required for safe retries.';
 
 REVOKE UPDATE, DELETE ON audit_events FROM PUBLIC;
-
-COMMIT;

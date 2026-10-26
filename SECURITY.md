@@ -22,7 +22,7 @@
 - إعداد OIDC يرفض MFA ضعيفاً: يجب أن يثبت claim `amr` استخدام Passkey/WebAuthn (`webauthn` أو `fido2`) أو TOTP (`otp`) وفق إعداد `OIDC_REQUIRED_AMR`؛ Keycloak هو المسؤول عن رحلة WebAuthn الفعلية.
 - سجل تدقيق runtime محدود ومُنقّح مع endpoint محمي `GET /api/admin/audit`; عند `DATA_BACKEND=postgres` يُكتب synchronously إلى `audit_events` ويصبح فشل المخزن فشلاً مغلقاً، مع استمرار الحاجة إلى retention/backup append-only مُدار.
 - قوالب Reverse Proxy في `deploy/` لـ Nginx وCaddy، مع TLS حديث، rate limiting، وحدود حجم الطلب.
-- GitHub Actions مع اختبارات متعددة لإصدارات Python، CodeQL، ومراجعة تغييرات الاعتماديات.
+- GitHub Actions مع اختبارات متعددة لإصدارات Python، Ruff، Bandit، pip-audit، CodeQL، ومراجعة تغييرات الاعتماديات وبناء صورة non-root.
 - مخطط PostgreSQL يفرض JOD، idempotency، تشفير العناوين على مستوى التطبيق، وحدوداً منفصلة للتدقيق.
 
 ## IAM الحالي

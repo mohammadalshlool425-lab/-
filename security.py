@@ -24,7 +24,7 @@ import uuid
 from http.cookies import SimpleCookie
 
 
-PASSWORD_SCHEME = "scrypt"
+PASSWORD_SCHEME = "scrypt"  # nosec B105
 PASSWORD_N = 2**14
 PASSWORD_R = 8
 PASSWORD_P = 1
@@ -162,7 +162,9 @@ def hash_password(password: str) -> str:
         p=PASSWORD_P,
         dklen=PASSWORD_DKLEN,
     )
-    encode = lambda value: base64.urlsafe_b64encode(value).decode("ascii").rstrip("=")
+    def encode(value):
+        return base64.urlsafe_b64encode(value).decode("ascii").rstrip("=")
+
     return "$".join(
         (
             PASSWORD_SCHEME,
@@ -187,7 +189,9 @@ def verify_password(password: str, record: str) -> bool:
         n_value, r_value, p_value = int(n_text), int(r_text), int(p_text)
         if n_value < 2**10 or n_value > 2**20 or n_value & (n_value - 1) or not 1 <= r_value <= 32 or not 1 <= p_value <= 16:
             return False
-        decode = lambda value: base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
+        def decode(value):
+            return base64.urlsafe_b64decode(value + "=" * (-len(value) % 4))
+
         salt = decode(salt_text)
         expected = decode(digest_text)
         if not 8 <= len(salt) <= 64 or not 16 <= len(expected) <= 64:

@@ -2,10 +2,19 @@
 
 المجلد يحتوي migrations PostgreSQL للإنتاج. لا يتم تشغيلها تلقائياً من التطبيق؛ شغّلها من pipeline migration منفصل وبحساب لا يستخدمه runtime. يقرأ `repository.py` لوحة الإدارة ويكتب audit events بحساب runtime محدود.
 
-## أول migration
+## تشغيل migrations
+
+الطريقة المفضلة تستخدم runner مع advisory lock وchecksum:
 
 ```bash
-psql "$DATABASE_URL" --set ON_ERROR_STOP=1 -f db/migrations/0001_initial.sql
+python scripts/migrate.py --database-url "$DATABASE_URL"
+python scripts/migrate.py --dry-run
+```
+
+للتشغيل اليدوي لمرة واحدة:
+
+```bash
+psql "$DATABASE_URL" --set ON_ERROR_STOP=1 --single-transaction -f db/migrations/0001_initial.sql
 ```
 
 استخدم اتصالاً مشفراً إلى PostgreSQL، وحساب migration منفصلاً عن حساب التطبيق. حساب runtime يحتاج فقط صلاحيات DML محددة على الجداول المطلوبة ولا يملك `CREATE`, `ALTER`, أو `DROP`.

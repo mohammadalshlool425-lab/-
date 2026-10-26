@@ -345,7 +345,7 @@ class OIDCClient:
             return self._fetch_json_override(url)
         request = Request(url, headers={"Accept": "application/json", "User-Agent": "Ezwatek-OIDC/1"})
         try:
-            with urlopen(request, timeout=5) as response:
+            with urlopen(request, timeout=5) as response:  # nosec B310
                 return _read_json_response(response)
         except OIDCError:
             raise
@@ -362,7 +362,7 @@ class OIDCClient:
             headers["Authorization"] = f"Basic {basic}"
         request = Request(url, data=body, headers=headers, method="POST")
         try:
-            with urlopen(request, timeout=5) as response:
+            with urlopen(request, timeout=5) as response:  # nosec B310
                 return _read_json_response(response)
         except OIDCError:
             raise

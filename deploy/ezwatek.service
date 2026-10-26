@@ -8,6 +8,7 @@ User=ezwatek
 Group=ezwatek
 WorkingDirectory=/opt/ezwatek
 EnvironmentFile=/etc/ezwatek/ezwatek.env
+Environment=BIND_HOST=127.0.0.1
 ExecStartPre=/usr/bin/python3 /opt/ezwatek/scripts/validate_production_config.py
 ExecStart=/usr/bin/python3 /opt/ezwatek/app.py
 Restart=on-failure
