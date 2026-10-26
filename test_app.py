@@ -67,6 +67,10 @@ class AppSecurityTests(unittest.TestCase):
         with self.assertRaises(HTTPError) as caught:
             self.fetch('/api/orders')
         self.assertEqual(caught.exception.code, 401)
+        request = Request(self.base_url + '/api/orders', data=b'', method='POST')
+        with self.assertRaises(HTTPError) as caught:
+            urlopen(request, timeout=3)
+        self.assertEqual(caught.exception.code, 401)
 
     def test_admin_api_requires_a_session(self):
         with self.assertRaises(HTTPError) as caught:

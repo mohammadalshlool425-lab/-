@@ -2305,7 +2305,7 @@ class AppHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = self._request_path()
-        if path in {'/api/auth/login', '/api/auth/logout'}:
+        if path in {'/api/auth/login', '/api/auth/logout', '/api/orders'}:
             self._serve(include_body=True, method='POST')
             return
         self._reject_state_change()
