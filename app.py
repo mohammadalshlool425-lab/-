@@ -6,14 +6,21 @@ import os
 import secrets
 import threading
 import time
+from pathlib import Path
 
 
 HTML = r'''<!doctype html>
 <html lang="ar" dir="rtl">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="format-detection" content="telephone=no" />
   <meta name="theme-color" content="#103b3e" />
+  <meta name="color-scheme" content="light" />
+  <meta name="application-name" content="سَنَد" />
+  <meta name="description" content="منصة أردنية لحجز الخدمات المنزلية الموثوقة في عمّان وإربد والزرقاء." />
+  <link rel="manifest" href="/manifest.webmanifest" />
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
   <title>سَنَد | خدماتك أقرب</title>
   <style nonce="__CSP_NONCE__">
     :root {
@@ -39,6 +46,8 @@ HTML = r'''<!doctype html>
     }
 
     * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+    :focus-visible { outline: 3px solid rgba(19,138,125,.42); outline-offset: 3px; }
     html { min-width: 320px; scroll-behavior: smooth; }
     body {
       margin: 0;
@@ -48,6 +57,8 @@ HTML = r'''<!doctype html>
       -webkit-font-smoothing: antialiased;
     }
     body.modal-open { overflow: hidden; }
+    .skip-link { position: fixed; z-index: 200; top: 10px; right: 10px; padding: 9px 13px; border-radius: 9px; color: #fff; background: var(--ink); transform: translateY(-150%); transition: transform .2s; }
+    .skip-link:focus { transform: translateY(0); }
     button, input { font: inherit; }
     button { cursor: pointer; }
     a { color: inherit; text-decoration: none; }
@@ -672,6 +683,8 @@ HTML = r'''<!doctype html>
     .auth-field span { color: var(--teal); font-size: 11px; direction: ltr; padding-left: 8px; border-left: 1px solid var(--line); }
     .auth-field input { width: 100%; min-width: 0; border: 0; outline: 0; color: var(--ink); background: transparent; font-size: 11px; direction: ltr; text-align: right; }
     .auth-field input::placeholder { color: #a7b6b3; }
+    .auth-field.invalid { border-color: #d68181; box-shadow: 0 0 0 3px rgba(214,129,129,.1); }
+    .auth-error { color: #b85e62; font-size: 9px; text-align: right; margin: -3px 0 9px; }
     .auth-footnote { color: #a0afac; font-size: 9px; line-height: 1.7; margin: 13px 0 0; }
     .auth-footnote strong { color: var(--teal); }
     .auth-divider { display: flex; align-items: center; gap: 9px; color: #a7b5b2; font-size: 9px; margin: 18px 0 12px; }
@@ -724,7 +737,7 @@ HTML = r'''<!doctype html>
       .app-shell { display: block; }
       .sidebar { display: none; }
       .main-content { padding: 22px 22px 84px; }
-      .mobile-nav { position: fixed; z-index: 30; display: flex; right: 12px; left: 12px; bottom: 12px; height: 63px; padding: 7px 9px; border: 1px solid rgba(214,228,222,.9); border-radius: 19px; background: rgba(255,255,255,.94); box-shadow: 0 12px 35px rgba(17,56,58,.14); backdrop-filter: blur(12px); justify-content: space-around; }
+      .mobile-nav { position: fixed; z-index: 30; display: flex; right: 12px; left: 12px; bottom: max(12px, env(safe-area-inset-bottom)); height: 63px; padding: 7px 9px; border: 1px solid rgba(214,228,222,.9); border-radius: 19px; background: rgba(255,255,255,.94); box-shadow: 0 12px 35px rgba(17,56,58,.14); backdrop-filter: blur(12px); justify-content: space-around; }
       .mobile-nav .nav-item { width: auto; min-width: 54px; padding: 6px 10px; flex-direction: column; gap: 4px; justify-content: center; text-align: center; border-radius: 12px; }
       .mobile-nav .nav-item.active::before { display: none; }
       .mobile-nav .nav-item span:not(.icon):not(.nav-count) { flex: initial; font-size: 9px; }
@@ -737,7 +750,7 @@ HTML = r'''<!doctype html>
     }
     @media (max-width: 680px) {
       body { background: var(--paper); }
-      .main-content { padding: 17px 15px 90px; }
+      .main-content { padding: 17px 15px max(90px, calc(78px + env(safe-area-inset-bottom))); }
       .topbar { margin-bottom: 22px; }
       .top-profile-copy, .date-label { display: none; }
       .top-profile { border: 0; padding: 0; }
@@ -819,6 +832,7 @@ HTML = r'''<!doctype html>
   </style>
 </head>
 <body>
+  <a class="skip-link" href="#mainContent">تجاوز إلى المحتوى الرئيسي</a>
   <div class="app-shell">
     <aside class="sidebar" aria-label="القائمة الرئيسية">
       <a class="brand" href="#" data-view="home" aria-label="سَنَد - الرئيسية">
@@ -871,7 +885,7 @@ HTML = r'''<!doctype html>
       </div>
     </aside>
 
-    <main class="main-content">
+    <main class="main-content" id="mainContent" tabindex="-1">
       <header class="topbar">
         <div class="date-label">الإثنين، <strong>٢٦ أكتوبر ٢٠٢٦</strong></div>
         <div class="topbar-actions">
@@ -1121,7 +1135,8 @@ HTML = r'''<!doctype html>
       <div class="auth-brand"><span class="icon" data-icon="sparkles"></span></div>
       <h2 id="authTitle">مرحباً بك في الأفضل!</h2>
       <p>سجّل الآن لتستمتع بتجربة خدمات سلسة وموثوقة في كل أنحاء الأردن.</p>
-      <div class="auth-field"><span>+962</span><input id="phoneInput" inputmode="tel" placeholder="رقم الموبايل" aria-label="رقم الموبايل الأردني" /></div>
+      <div class="auth-field" id="phoneField"><span>+962</span><input id="phoneInput" inputmode="tel" autocomplete="tel-national" placeholder="رقم الموبايل" aria-label="رقم الموبايل الأردني" aria-describedby="phoneError" /></div>
+      <p class="auth-error" id="phoneError" hidden>اكتبي رقم موبايل أردني صحيح من ٩ أرقام.</p>
       <button class="primary-button full-button" type="button" id="authContinue">ابدأ رحلتك الآن <span class="icon" data-icon="arrow-left"></span></button>
       <p class="auth-footnote">بالمتابعة، أنت توافق على <strong>شروط الاستخدام</strong> و<strong>سياسة الخصوصية</strong>.</p>
       <div class="auth-divider">أو</div>
@@ -1140,7 +1155,7 @@ HTML = r'''<!doctype html>
   <!-- Notifications -->
   <div class="notification-panel" id="notificationPanel" aria-label="الإشعارات"><div class="notification-head"><strong>الإشعارات</strong><button type="button" id="markRead">تحديد الكل كمقروء</button></div><div class="notification-item unread"><span class="notification-icon"><span class="icon" data-icon="truck"></span></span><span class="notification-copy"><strong>الفني بالطريق إليك 🚗</strong><p>يوسف من «الفني الماهر» سيصل خلال ١٢ دقيقة.</p><time>منذ ٣ دقائق</time></span></div><div class="notification-item unread"><span class="notification-icon orange"><span class="icon" data-icon="star"></span></span><span class="notification-copy"><strong>رأيك يهمنا ⭐</strong><p>كيف كانت تجربتك مع سَنَد اليوم؟ قيّمي الخدمة الآن.</p><time>منذ ساعة</time></span></div><div class="notification-item"><span class="notification-icon"><span class="icon" data-icon="gift"></span></span><span class="notification-copy"><strong>عرض خاص لك</strong><p>خصم ١٥٪ على أول طلب تنظيف هذا الشهر.</p><time>أمس</time></span></div></div>
 
-  <div class="toast" id="toast"><span class="icon" data-icon="check"></span><span id="toastText">تم حفظ التغييرات</span></div>
+  <div class="toast" id="toast" role="status" aria-live="polite"><span class="icon" data-icon="check"></span><span id="toastText">تم حفظ التغييرات</span></div>
 
   <script nonce="__CSP_NONCE__">
     const iconPaths = {
@@ -1382,7 +1397,16 @@ HTML = r'''<!doctype html>
     function openAuth() { openOverlay('authModal'); setTimeout(() => $('#phoneInput').focus(), 120); }
     $('#profileButton').addEventListener('click', openAuth);
     $('#profileButton').addEventListener('keydown', event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); openAuth(); } });
-    $('#authContinue').addEventListener('click', () => { closeOverlay('authModal'); showToast('أهلاً فيك مع سَنَد — تم تجهيز حسابك'); });
+    $('#authContinue').addEventListener('click', () => {
+      const phone = $('#phoneInput').value.replace(/[^0-9]/g, '');
+      const validJordanPhone = /^7[0-9]{8}$/.test(phone) || /^07[0-9]{8}$/.test(phone);
+      $('#phoneError').hidden = validJordanPhone;
+      $('#phoneField').classList.toggle('invalid', !validJordanPhone);
+      if (!validJordanPhone) { $('#phoneInput').focus(); return; }
+      closeOverlay('authModal');
+      showToast('أهلاً فيك مع سَنَد — تم تجهيز حسابك');
+    });
+    $('#phoneInput').addEventListener('input', () => { $('#phoneError').hidden = true; $('#phoneField').classList.remove('invalid'); });
     $('#guestExplore').addEventListener('click', () => { closeOverlay('authModal'); openIntro(); });
 
     $('#notificationButton').addEventListener('click', event => { event.stopPropagation(); const panel = $('#notificationPanel'); panel.classList.toggle('open'); $('#notificationButton').setAttribute('aria-expanded', panel.classList.contains('open')); });
@@ -1396,6 +1420,15 @@ HTML = r'''<!doctype html>
 </html>'''
 
 
+PROJECT_ROOT = Path(__file__).resolve().parent
+STATIC_ASSETS = {
+    '/manifest.webmanifest': (PROJECT_ROOT / 'manifest.webmanifest', 'application/manifest+json; charset=utf-8'),
+    '/favicon.svg': (PROJECT_ROOT / 'favicon.svg', 'image/svg+xml; charset=utf-8'),
+    '/robots.txt': (PROJECT_ROOT / 'robots.txt', 'text/plain; charset=utf-8'),
+}
+
+
+APP_VERSION = '0.3.0'
 MAX_PATH_LENGTH = 2048
 RATE_LIMIT_WINDOW = 60
 RATE_LIMIT_MAX_REQUESTS = 180
@@ -1454,7 +1487,7 @@ class AppHandler(BaseHTTPRequestHandler):
             'Content-Security-Policy': (
                 "default-src 'none'; base-uri 'none'; form-action 'self'; "
                 f"script-src 'nonce-{nonce}'; style-src 'nonce-{nonce}'; "
-                "img-src 'self' data:; font-src 'self'; connect-src 'self'; "
+                "img-src 'self' data:; font-src 'self'; connect-src 'self'; manifest-src 'self'; "
                 "object-src 'none'; worker-src 'none'; frame-ancestors " + frame_ancestors + "; "
                 "block-all-mixed-content"
             ),
@@ -1501,7 +1534,22 @@ class AppHandler(BaseHTTPRequestHandler):
             self._send_json({'error': 'bad_request', 'message': 'طلب غير صالح.'}, 400, include_body)
             return
         if path == '/health':
-            self._send_json({'status': 'ok', 'app': 'sanad', 'security': 'headers-enabled'}, 200, include_body)
+            self._send_json({'status': 'ok', 'app': 'sanad', 'version': APP_VERSION, 'security': 'headers-enabled'}, 200, include_body)
+            return
+        if path == '/ready':
+            assets_ready = all(file_path.is_file() for file_path, _ in STATIC_ASSETS.values())
+            status = 200 if assets_ready else 503
+            self._send_json({'status': 'ready' if assets_ready else 'not_ready', 'app': 'sanad', 'version': APP_VERSION}, status, include_body)
+            return
+        asset = STATIC_ASSETS.get(path)
+        if asset:
+            file_path, content_type = asset
+            try:
+                body = file_path.read_bytes()
+            except OSError:
+                self._send_json({'error': 'asset_unavailable'}, 503, include_body)
+                return
+            self._send_payload(body, content_type, 200, include_body)
             return
         if path != '/':
             self._send_json({'error': 'not_found'}, 404, include_body)

@@ -1,0 +1,75 @@
+import re
+import threading
+import unittest
+from urllib.error import HTTPError
+from urllib.request import Request, urlopen
+from http.server import ThreadingHTTPServer
+
+import app
+
+
+class AppSecurityTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.server = ThreadingHTTPServer(('127.0.0.1', 0), app.AppHandler)
+        cls.thread = threading.Thread(target=cls.server.serve_forever, daemon=True)
+        cls.thread.start()
+        cls.base_url = f'http://127.0.0.1:{cls.server.server_port}'
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.server.shutdown()
+        cls.server.server_close()
+        cls.thread.join(timeout=2)
+
+    def fetch(self, path='/', method='GET'):
+        request = Request(self.base_url + path, method=method)
+        return urlopen(request, timeout=3)
+
+    def test_html_has_nonce_bound_to_csp(self):
+        response = self.fetch('/')
+        body = response.read().decode('utf-8')
+        csp = response.headers['Content-Security-Policy']
+        html_nonce = re.search(r'<style nonce="([^"]+)"', body).group(1)
+        csp_nonce = re.search(r"script-src 'nonce-([^']+)'", csp).group(1)
+        self.assertEqual(html_nonce, csp_nonce)
+        self.assertIn('manifest-src \'self\'', csp)
+        self.assertIn('id="admin-view"', body)
+
+    def test_security_headers_are_present(self):
+        response = self.fetch('/health')
+        self.assertEqual(response.status, 200)
+        self.assertIn('"version":"0.3.0"', response.read().decode('utf-8'))
+        self.assertEqual(response.headers['X-Content-Type-Options'], 'nosniff')
+        self.assertEqual(response.headers['Referrer-Policy'], 'no-referrer')
+        self.assertEqual(response.headers['Cache-Control'], 'no-store, max-age=0')
+        self.assertTrue(response.headers['X-Request-ID'])
+
+    def test_readiness_endpoint_checks_assets(self):
+        response = self.fetch('/ready')
+        self.assertEqual(response.status, 200)
+        self.assertIn('"status":"ready"', response.read().decode('utf-8'))
+
+    def test_public_assets_are_allowlisted(self):
+        manifest = self.fetch('/manifest.webmanifest').read().decode('utf-8')
+        favicon = self.fetch('/favicon.svg').read().decode('utf-8')
+        robots = self.fetch('/robots.txt').read().decode('utf-8')
+        self.assertIn('سَنَد', manifest)
+        self.assertIn('<svg', favicon)
+        self.assertIn('Disallow: /', robots)
+
+    def test_unknown_routes_do_not_fall_through(self):
+        with self.assertRaises(HTTPError) as caught:
+            self.fetch('/does-not-exist')
+        self.assertEqual(caught.exception.code, 404)
+        self.assertEqual(caught.exception.headers['X-Content-Type-Options'], 'nosniff')
+
+    def test_state_changing_methods_are_closed(self):
+        with self.assertRaises(HTTPError) as caught:
+            self.fetch('/', method='POST')
+        self.assertEqual(caught.exception.code, 405)
+        self.assertEqual(caught.exception.headers['Allow'], 'GET, HEAD, OPTIONS')
+
+
+if __name__ == '__main__':
+    unittest.main(verbosity=2)
