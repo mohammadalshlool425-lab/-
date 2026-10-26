@@ -945,7 +945,9 @@ HTML = r'''<!doctype html>
             <div class="hero-actions"><button class="primary-button" type="button" data-book="تنظيف وتعقيم">احجز خدمة الآن <span class="icon" data-icon="arrow-left"></span></button><button class="hero-link" type="button" data-action="intro">كيف بتشتغل عزوتك؟</button></div>
           </div>
           <div class="hero-float"><span class="float-check"><span class="icon" data-icon="check"></span></span> مزوّدون موثّقون</div>
+          <!-- PREVIEW_HERO_STAT_START -->
           <div class="hero-stat"><strong>+ ٤,٨٠٠</strong><span>طلب تم إنجازه بأمان</span></div>
+          <!-- PREVIEW_HERO_STAT_END -->
           <svg class="hero-art" viewBox="0 0 350 245" aria-hidden="true">
             <circle class="art-glow" cx="212" cy="145" r="111"/>
             <path class="art-dark" d="M88 224h199c5 0 9 4 9 9v12H78v-12c0-5 4-9 10-9Z"/>
@@ -985,6 +987,7 @@ HTML = r'''<!doctype html>
           <div class="no-results" id="homeNoResults">ما لقينا خدمة بهالاسم. جرّبي كلمة ثانية.</div>
         </div>
 
+        <!-- PREVIEW_CURRENT_ORDER_START -->
         <div class="dashboard-columns">
           <article class="panel order-panel">
             <div class="panel-header"><div><h3>طلبك الحالي</h3><p id="orderMeta">آخر تحديث منذ ٣ دقائق</p></div><span class="status-pill" id="orderStatus">قيد التنفيذ</span></div>
@@ -999,13 +1002,18 @@ HTML = r'''<!doctype html>
             <div class="trust-footer">ادفع بالطريقة اللي تناسبك: <strong>CliQ، بطاقة، أو عند الإنجاز.</strong></div>
           </article>
         </div>
+        <!-- PREVIEW_CURRENT_ORDER_END -->
+        <p class="empty-state">لا يوجد طلب حالي معروض. سجّلي الدخول لإنشاء طلب حقيقي ومتابعة حالته.</p>
 
         <div class="section-heading"><div><h2>مزوّدون قريبون منك</h2><p>اختيارات أهل عمّان المفضّلة</p></div><button class="text-button" type="button" data-view="favorites">شوف المفضلة <span class="icon" data-icon="arrow-left"></span></button></div>
+        <!-- PREVIEW_PROVIDERS_START -->
         <div class="provider-grid">
           <button class="provider-card" type="button" data-book="تنظيف وتعقيم"><span class="provider-logo one">ل ب</span><span class="provider-copy"><strong>لمسة بيتك</strong><span class="provider-meta"><span class="star">★</span> ٤.٩ · تنظيف منازل</span></span><span class="icon" data-icon="chevron-left"></span></button>
           <button class="provider-card" type="button" data-book="صيانة منزلية"><span class="provider-logo two">ف م</span><span class="provider-copy"><strong>الفني الماهر</strong><span class="provider-meta"><span class="star">★</span> ٤.٨ · صيانة عامة</span></span><span class="icon" data-icon="chevron-left"></span></button>
           <button class="provider-card" type="button" data-book="نقل وشحن"><span class="provider-logo three">ن</span><span class="provider-copy"><strong>النشامى للنقل</strong><span class="provider-meta"><span class="star">★</span> ٤.٩ · نقل وشحن</span></span><span class="icon" data-icon="chevron-left"></span></button>
         </div>
+        <!-- PREVIEW_PROVIDERS_END -->
+        <p class="empty-state">سيظهر مزودو الخدمة المتاحون بعد اكتمال ربط بيانات التوزيع والتحقق.</p>
       </section>
 
       <!-- Orders -->
@@ -1730,6 +1738,12 @@ PREVIEW_NOTIFICATIONS_START = '<!-- PREVIEW_NOTIFICATIONS_START -->'
 PREVIEW_NOTIFICATIONS_END = '<!-- PREVIEW_NOTIFICATIONS_END -->'
 PREVIEW_PAYMENT_START = '<!-- PREVIEW_PAYMENT_START -->'
 PREVIEW_PAYMENT_END = '<!-- PREVIEW_PAYMENT_END -->'
+PREVIEW_HERO_STAT_START = '<!-- PREVIEW_HERO_STAT_START -->'
+PREVIEW_HERO_STAT_END = '<!-- PREVIEW_HERO_STAT_END -->'
+PREVIEW_CURRENT_ORDER_START = '<!-- PREVIEW_CURRENT_ORDER_START -->'
+PREVIEW_CURRENT_ORDER_END = '<!-- PREVIEW_CURRENT_ORDER_END -->'
+PREVIEW_PROVIDERS_START = '<!-- PREVIEW_PROVIDERS_START -->'
+PREVIEW_PROVIDERS_END = '<!-- PREVIEW_PROVIDERS_END -->'
 _rate_buckets = defaultdict(deque)
 _rate_lock = threading.Lock()
 API_BODY_LIMIT = 16 * 1024
@@ -2289,6 +2303,9 @@ class AppHandler(BaseHTTPRequestHandler):
             rendered = remove_marked_blocks(rendered, CUSTOMER_SAMPLE_ORDERS_START, CUSTOMER_SAMPLE_ORDERS_END)
             rendered = remove_marked_blocks(rendered, PREVIEW_NOTIFICATIONS_START, PREVIEW_NOTIFICATIONS_END)
             rendered = remove_marked_blocks(rendered, PREVIEW_PAYMENT_START, PREVIEW_PAYMENT_END)
+            rendered = remove_marked_blocks(rendered, PREVIEW_HERO_STAT_START, PREVIEW_HERO_STAT_END)
+            rendered = remove_marked_blocks(rendered, PREVIEW_CURRENT_ORDER_START, PREVIEW_CURRENT_ORDER_END)
+            rendered = remove_marked_blocks(rendered, PREVIEW_PROVIDERS_START, PREVIEW_PROVIDERS_END)
         self._send_payload(rendered.encode('utf-8'), 'text/html; charset=utf-8', 200, include_body, nonce=nonce)
 
     def do_GET(self):
