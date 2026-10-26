@@ -95,6 +95,39 @@ class PostgresRepository:
             for row in rows
         ]
 
+    def list_providers(self, service_slug: str, city: str | None = None, limit: int = 12) -> list[dict[str, Any]]:
+        if not service_slug:
+            raise OrderInputError("service_required")
+        limit = max(1, min(int(limit), 50))
+        rows = self._fetchall(
+            """
+            SELECT p.id::text, p.business_name, p.city, p.rating,
+                   s.slug, s.name_ar
+            FROM providers AS p
+            JOIN provider_services AS ps ON ps.provider_id = p.id
+            JOIN services AS s ON s.id = ps.service_id
+            WHERE p.active = TRUE
+              AND p.verification_status = 'verified'
+              AND s.active = TRUE
+              AND s.slug = %s
+              AND p.city = COALESCE(%s, p.city)
+            ORDER BY p.rating DESC NULLS LAST, p.created_at ASC
+            LIMIT %s
+            """,
+            (service_slug, city, limit),
+        )
+        return [
+            {
+                'id': str(row[0]),
+                'business_name': str(row[1]),
+                'city': str(row[2]),
+                'rating': float(row[3]) if row[3] is not None else None,
+                'service_slug': str(row[4]),
+                'service_name_ar': str(row[5]),
+            }
+            for row in rows
+        ]
+
     def create_order(
         self,
         *,

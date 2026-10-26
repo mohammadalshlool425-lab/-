@@ -41,6 +41,8 @@ class FakeConnection:
             return FakeResult(('order-1', 'EZW-ABC123', 'service-1', 'requested', 'amman', 1500, 'JOD', start, end))
         if 'WHERE customer_id' in sql and 'idempotency_key' in sql:
             return FakeResult(None)
+        if 'FROM providers AS p' in sql:
+            return FakeResult(many=[('provider-1', 'الفني الماهر', 'amman', 4.8, 'cleaning', 'تنظيف وتعقيم')])
         if 'FROM services' in sql:
             return FakeResult(many=[('service-1', 'cleaning', 'تنظيف وتعقيم', 'Cleaning', 1200, 'JOD', 'home', 'المنزل')])
         if 'FROM orders' in sql:
@@ -72,6 +74,14 @@ class RepositoryTests(unittest.TestCase):
         services = self.repository.list_services()
         self.assertEqual(services[0]['slug'], 'cleaning')
         self.assertEqual(services[0]['minimum_amount_minor'], 1200)
+
+    def test_verified_providers_are_filtered_by_service_and_city(self):
+        providers = self.repository.list_providers('cleaning', 'amman')
+        self.assertEqual(providers[0]['business_name'], 'الفني الماهر')
+        self.assertEqual(providers[0]['rating'], 4.8)
+        sql, params = self.pool.connection_instance.queries[-1]
+        self.assertIn("verification_status = 'verified'", sql)
+        self.assertEqual(params, ('cleaning', 'amman', 12))
 
     def test_order_creation_is_atomic_and_returns_public_code(self):
         start = datetime(2026, 10, 27, 10, tzinfo=timezone.utc)

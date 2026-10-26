@@ -41,7 +41,7 @@
 
 - PostgreSQL: migrations SQL مضبوطة موجودة في `db/migrations/0001_initial.sql` و`0002_seed_service_catalog.sql` و`0003_order_request_fingerprint.sql`، وقراءات الكتالوج/الطلبات ولوحة الإدارة/كتابة التدقيق تمر عبر `repository.py` عند تفعيل DATA_BACKEND=postgres؛ إدارة الإصدارات التالية تبقى ضمن pipeline قاعدة البيانات.
 - Redis للجلسات، queues، idempotency، وrate limiting الموزع؛ session adapter وlogin/request throttles وRedis Streams worker متوفرة، ويبقى ربط البيئة الخارجية وhandlers الخاصة بالدفع/الإشعارات مطلوباً.
-- نموذج مستخدمين، مزودين، خدمات، حجوزات، مدفوعات، وتقييمات؛ كتالوج الخدمات و`POST /api/orders` أصبحا مرتبطين بـPostgreSQL مع تشفير العنوان وidempotency وauthorization وتدقيق، بينما الدفع والإشعارات ينتظران مزودين حقيقيين.
+- نموذج مستخدمين، مزودين، خدمات، حجوزات، مدفوعات، وتقييمات؛ كتالوج الخدمات ودليل المزودين المتحققين و`POST /api/orders` أصبحوا مرتبطين بـPostgreSQL مع تشفير العنوان وidempotency وauthorization وتدقيق، بينما الدفع والإشعارات ينتظران مزودين حقيقيين.
 - سجل تدقيق append-only مع retention ونسخ احتياطية مشفرة.
 - منع تكرار الحجز والدفع عبر idempotency keys.
 

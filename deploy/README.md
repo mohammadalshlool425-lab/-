@@ -88,6 +88,7 @@ export ORDER_ADDRESS_ENCRYPTION_KEY=inject-base64url-32-byte-key-from-secret-man
 
 - `GET /api/auth/status`
 - `GET /api/services` يقرأ الكتالوج النشط من PostgreSQL في production.
+- `GET /api/providers?service_slug=cleaning&city=amman` يعرض مزودين نشطين ومتحققاً منهم فقط؛ لا يعيد بيانات الهوية أو العنوان.
 - `GET /api/orders` يتطلب دور العميل ويعيد طلباته فقط.
 - `POST /api/orders` يتطلب دور العميل و`X-CSRF-Token` و`Idempotency-Key`؛ العنوان يُشفّر قبل التخزين، ولا يبدأ الدفع تلقائياً.
 - عند `IAM_MODE=local` للانتقال فقط: `POST /api/auth/login` ويتطلب username/password/MFA code.

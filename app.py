@@ -1008,14 +1008,14 @@ HTML = r'''<!doctype html>
         <p class="empty-state">لا يوجد طلب حالي معروض. سجّلي الدخول لإنشاء طلب حقيقي ومتابعة حالته.</p>
 
         <div class="section-heading"><div><h2>مزوّدون قريبون منك</h2><p>اختيارات أهل عمّان المفضّلة</p></div><button class="text-button" type="button" data-view="favorites">شوف المفضلة <span class="icon" data-icon="arrow-left"></span></button></div>
-        <!-- PREVIEW_PROVIDERS_START -->
-        <div class="provider-grid">
+        <div class="provider-grid" id="providerDirectory">
+          <!-- PREVIEW_PROVIDERS_START -->
           <button class="provider-card" type="button" data-book="تنظيف وتعقيم"><span class="provider-logo one">ل ب</span><span class="provider-copy"><strong>لمسة بيتك</strong><span class="provider-meta"><span class="star">★</span> ٤.٩ · تنظيف منازل</span></span><span class="icon" data-icon="chevron-left"></span></button>
           <button class="provider-card" type="button" data-book="صيانة منزلية"><span class="provider-logo two">ف م</span><span class="provider-copy"><strong>الفني الماهر</strong><span class="provider-meta"><span class="star">★</span> ٤.٨ · صيانة عامة</span></span><span class="icon" data-icon="chevron-left"></span></button>
           <button class="provider-card" type="button" data-book="نقل وشحن"><span class="provider-logo three">ن</span><span class="provider-copy"><strong>النشامى للنقل</strong><span class="provider-meta"><span class="star">★</span> ٤.٩ · نقل وشحن</span></span><span class="icon" data-icon="chevron-left"></span></button>
+          <!-- PREVIEW_PROVIDERS_END -->
         </div>
-        <!-- PREVIEW_PROVIDERS_END -->
-        <p class="empty-state">سيظهر مزودو الخدمة المتاحون بعد اكتمال ربط بيانات التوزيع والتحقق.</p>
+        <p id="providerEmptyNotice" class="empty-state">سيظهر مزودو الخدمة المتاحون بعد اكتمال ربط بيانات التوزيع والتحقق.</p>
       </section>
 
       <!-- Orders -->
@@ -1530,6 +1530,51 @@ HTML = r'''<!doctype html>
       }
     }
 
+    async function loadProviderDirectory() {
+      const directory = $('#providerDirectory');
+      const empty = $('#providerEmptyNotice');
+      if (!directory || !empty) return;
+      try {
+        const statusResponse = await fetch('/api/auth/status', { credentials: 'same-origin' });
+        const status = await statusResponse.json();
+        if (status.auth_mode !== 'oidc') return;
+        const response = await fetch('/api/providers?service_slug=cleaning&city=amman', { credentials: 'same-origin' });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'providers_failed');
+        directory.replaceChildren();
+        empty.hidden = result.providers.length > 0;
+        result.providers.forEach(provider => {
+          const visual = serviceVisual(provider.service_name_ar);
+          const button = document.createElement('button');
+          button.type = 'button';
+          button.className = 'provider-card';
+          button.dataset.book = provider.service_name_ar;
+          const logo = document.createElement('span');
+          logo.className = 'provider-logo ' + visual.cls;
+          logo.textContent = provider.business_name.slice(0, 2);
+          const copy = document.createElement('span');
+          copy.className = 'provider-copy';
+          const name = document.createElement('strong');
+          name.textContent = provider.business_name;
+          const meta = document.createElement('span');
+          meta.className = 'provider-meta';
+          meta.textContent = (provider.rating == null ? '—' : provider.rating.toFixed(1)) + ' · ' + cityLabel(provider.city) + ' · ' + provider.service_name_ar;
+          copy.append(name, meta);
+          const arrow = document.createElement('span');
+          arrow.className = 'icon';
+          arrow.innerHTML = icon('chevron-left');
+          button.append(logo, copy, arrow);
+          button.addEventListener('click', () => openBooking(provider.service_name_ar));
+          directory.append(button);
+        });
+      } catch (errorValue) {
+        directory.replaceChildren();
+        empty.hidden = false;
+        empty.textContent = 'تعذر قراءة مزودي الخدمة حالياً. لم يتم عرض بيانات غير مؤكدة.';
+      }
+    }
+    loadProviderDirectory();
+
     // Search the home service cards.
     function filterCards(input, cards, empty) {
       const term = input.value.trim().toLowerCase();
@@ -1716,7 +1761,7 @@ STATIC_ASSETS = {
 }
 
 
-APP_VERSION = '0.14.0'
+APP_VERSION = '0.15.0'
 SERVICE_CATALOG = [
     {'slug': 'home-maintenance', 'name_ar': 'صيانة منزلية', 'name_en': 'Home maintenance', 'minimum_amount_minor': 1500, 'currency': 'JOD'},
     {'slug': 'cleaning', 'name_ar': 'تنظيف وتعقيم', 'name_en': 'Cleaning and sanitization', 'minimum_amount_minor': 1200, 'currency': 'JOD'},
@@ -2107,6 +2152,26 @@ class AppHandler(BaseHTTPRequestHandler):
                 else:
                     services = [dict(item) for item in SERVICE_CATALOG]
                 self._send_json({'services': services}, 200, include_body, {'Cache-Control': 'public, max-age=60'})
+            except DataStoreError:
+                self._send_json({'error': 'data_store_unavailable'}, 503, include_body, {'Cache-Control': 'no-store'})
+            return
+
+        if path == '/api/providers' and method in {'GET', 'HEAD'}:
+            query = parse_qs(urlsplit(self.path or '').query, keep_blank_values=True)
+            service_slug = query.get('service_slug', [''])[0]
+            city = query.get('city', [''])[0] or None
+            if not _SERVICE_SLUG_PATTERN.fullmatch(service_slug) or (city is not None and city not in ORDER_CITIES):
+                self._send_json({'error': 'invalid_provider_filter'}, 422, include_body, {'Cache-Control': 'no-store'})
+                return
+            try:
+                if DATA is not None:
+                    providers = DATA.list_providers(service_slug, city)
+                elif os.environ.get('APP_ENV', 'development').lower() == 'production':
+                    self._send_json({'error': 'data_store_unavailable'}, 503, include_body, {'Cache-Control': 'no-store'})
+                    return
+                else:
+                    providers = []
+                self._send_json({'providers': providers}, 200, include_body, {'Cache-Control': 'public, max-age=60'})
             except DataStoreError:
                 self._send_json({'error': 'data_store_unavailable'}, 503, include_body, {'Cache-Control': 'no-store'})
             return

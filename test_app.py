@@ -41,7 +41,7 @@ class AppSecurityTests(unittest.TestCase):
     def test_security_headers_are_present(self):
         response = self.fetch('/health')
         self.assertEqual(response.status, 200)
-        self.assertIn('"version":"0.14.0"', response.read().decode('utf-8'))
+        self.assertIn('"version":"0.15.0"', response.read().decode('utf-8'))
         self.assertEqual(response.headers['X-Content-Type-Options'], 'nosniff')
         self.assertEqual(response.headers['Referrer-Policy'], 'no-referrer')
         self.assertEqual(response.headers['Cache-Control'], 'no-store, max-age=0')
@@ -58,6 +58,11 @@ class AppSecurityTests(unittest.TestCase):
         self.assertEqual(response.status, 200)
         self.assertIn('cleaning', payload)
         self.assertEqual(response.headers['Cache-Control'], 'public, max-age=60')
+
+    def test_provider_directory_is_not_fabricated_in_development(self):
+        response = self.fetch('/api/providers?service_slug=cleaning&city=amman')
+        self.assertEqual(response.status, 200)
+        self.assertEqual(response.read().decode('utf-8'), '{"providers":[]}')
 
     def test_auth_status_does_not_create_a_session(self):
         response = self.fetch('/api/auth/status')
