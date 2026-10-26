@@ -40,7 +40,7 @@ class AppSecurityTests(unittest.TestCase):
     def test_security_headers_are_present(self):
         response = self.fetch('/health')
         self.assertEqual(response.status, 200)
-        self.assertIn('"version":"0.8.1"', response.read().decode('utf-8'))
+        self.assertIn('"version":"0.9.0"', response.read().decode('utf-8'))
         self.assertEqual(response.headers['X-Content-Type-Options'], 'nosniff')
         self.assertEqual(response.headers['Referrer-Policy'], 'no-referrer')
         self.assertEqual(response.headers['Cache-Control'], 'no-store, max-age=0')
@@ -67,6 +67,21 @@ class AppSecurityTests(unittest.TestCase):
             urlopen(request, timeout=3)
         self.assertEqual(caught.exception.code, 401)
         self.assertIn('invalid_credentials', caught.exception.read().decode('utf-8'))
+
+    def test_oidc_mode_never_falls_back_to_local_login(self):
+        original_mode = os.environ.get('IAM_MODE')
+        try:
+            os.environ['IAM_MODE'] = 'oidc'
+            request = Request(self.base_url + '/api/auth/login', data=b'{}', method='POST', headers={'Content-Type': 'application/json'})
+            with self.assertRaises(HTTPError) as caught:
+                urlopen(request, timeout=3)
+            self.assertEqual(caught.exception.code, 503)
+            self.assertIn('identity_provider_unavailable', caught.exception.read().decode('utf-8'))
+        finally:
+            if original_mode is None:
+                os.environ.pop('IAM_MODE', None)
+            else:
+                os.environ['IAM_MODE'] = original_mode
 
     def test_public_assets_are_allowlisted(self):
         manifest = self.fetch('/manifest.webmanifest').read().decode('utf-8')

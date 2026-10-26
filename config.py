@@ -27,8 +27,11 @@ def _is_placeholder(value: str) -> bool:
 
 
 def _https_url(value: str, field: str, issues: list[str], allow_path: bool = True) -> None:
+    if any(char in value for char in "\r\n"):
+        issues.append(f"{field} contains invalid control characters")
+        return
     parsed = urlsplit(value)
-    if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password:
+    if parsed.scheme != "https" or not parsed.hostname or parsed.username or parsed.password or parsed.query or parsed.fragment:
         issues.append(f"{field} must be an https URL without embedded credentials")
         return
     if not allow_path and parsed.path not in ("", "/"):
@@ -56,10 +59,15 @@ def validate_production_env(env: dict[str, str] | None = None) -> list[str]:
     _https_url(issuer, "OIDC_ISSUER_URL", issues)
     if _is_placeholder(_value(values, "OIDC_CLIENT_ID")):
         issues.append("OIDC_CLIENT_ID must be supplied by the identity provider")
+    required_amr = {item.strip().lower() for item in _value(values, "OIDC_REQUIRED_AMR").split(",") if item.strip()}
+    if not required_amr or not required_amr.intersection({"webauthn", "fido2"}) or "otp" not in required_amr:
+        issues.append("OIDC_REQUIRED_AMR must include a passkey value (webauthn or fido2) and otp")
     redirect_uri = _value(values, "OIDC_REDIRECT_URI")
     _https_url(redirect_uri, "OIDC_REDIRECT_URI", issues)
     if public_origin and redirect_uri and not redirect_uri.startswith(public_origin.rstrip("/") + "/"):
         issues.append("OIDC_REDIRECT_URI must belong to PUBLIC_ORIGIN")
+    if redirect_uri and urlsplit(redirect_uri).path != "/auth/callback":
+        issues.append("OIDC_REDIRECT_URI must use /auth/callback")
 
     if _value(values, "SESSION_STORE").lower() != "redis":
         issues.append("SESSION_STORE must be redis in production")
@@ -69,6 +77,8 @@ def validate_production_env(env: dict[str, str] | None = None) -> list[str]:
     if not redis_url.startswith("rediss://") or _is_placeholder(redis_url):
         issues.append("REDIS_URL must use rediss:// and a non-placeholder host in production")
 
+    if _value(values, "DATA_BACKEND").lower() != "postgres":
+        issues.append("DATA_BACKEND must be postgres in production")
     database_url = _value(values, "DATABASE_URL")
     if not database_url.startswith(("postgresql://", "postgres://")) or _is_placeholder(database_url):
         issues.append("DATABASE_URL must target a non-placeholder PostgreSQL endpoint in production")

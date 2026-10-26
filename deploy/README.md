@@ -35,33 +35,54 @@ sudo systemctl status ezwatek.service
 
 ## IAM وMFA وRBAC
 
-أنشئ بيانات مدير أولية دون كتابتها في Git:
+لبيئة التطوير/الانتقال فقط يمكن إنشاء بيانات IAM محلية دون كتابتها في Git:
 
 ```bash
 python scripts/bootstrap_iam.py
 ```
 
-ثم حمّل القيم إلى Secret Manager أو بيئة الخدمة:
+لا تُحمّل هذه القيم في production. إعداد production يجب أن يستخدم Keycloak/OIDC وPasskeys/TOTP:
 
 ```bash
-export IAM_ADMIN_USERNAME=...
-export IAM_ADMIN_PASSWORD_HASH=...
-export IAM_MFA_TOTP_SECRET=...
-export IAM_ADMIN_ROLES=owner
 export APP_ENV=production
+export IAM_MODE=oidc
+export PUBLIC_ORIGIN=https://app.your-domain.jo
+export OIDC_ISSUER_URL=https://identity.your-domain.jo/realms/ezwatek
+export OIDC_CLIENT_ID=ezwatek-web
+export OIDC_REQUIRED_AMR=webauthn,fido2,otp
+export OIDC_REDIRECT_URI=https://app.your-domain.jo/auth/callback
+export SESSION_STORE=redis
+export RATE_LIMIT_STORE=redis
+export REDIS_URL=rediss://...
+export DATA_BACKEND=postgres
+export DATABASE_URL=postgresql://...
+export WAF_MODE=managed
+export ENABLE_HSTS=1
 export ADMIN_UI_ENABLED=1
 ```
+
+ضع القيم في Secret Manager أو ملف خدمة محمي، ولا تضع `OIDC_CLIENT_SECRET` أو `DATABASE_URL` في Git.
+
+### قائمة Keycloak/OIDC
+
+- أنشئ confidential أو public client مناسباً لـ Authorization Code + PKCE مع `S256` فقط.
+- سجّل Redirect URI واحداً مطابقاً حرفياً لـ `/auth/callback`، ولا تستخدم wildcard.
+- فعّل claims: `sub`, `preferred_username` أو `email`, `groups`, و`amr`.
+- اربط مجموعات/أدوار Keycloak بالـ `OIDC_ROLE_MAP`، وفعّل WebAuthn للمديرين مع OTP كاسترداد.
+- اختبر أن ID token يحوي issuer وaudience وnonce وexp وamr قبل فتح لوحة الإدارة.
 
 التطبيق يوفر endpoints داخلية:
 
 - `GET /api/auth/status`
-- `POST /api/auth/login` ويتطلب username/password/MFA code.
+- عند `IAM_MODE=local` للانتقال فقط: `POST /api/auth/login` ويتطلب username/password/MFA code.
+- عند `IAM_MODE=oidc`: `GET /auth/login` يبدأ Authorization Code + PKCE، و`GET /auth/callback` يتحقق من state/nonce وID token ثم ينشئ جلسة مشتركة.
+- `POST /api/auth/login` لا يعود إلى IAM المحلي عند وضع OIDC؛ يعيد `oidc_required` مع رابط بدء الدخول.
 - `POST /api/auth/logout` ويتطلب `X-CSRF-Token`.
 - `GET /api/admin/overview` ويتطلب permission `admin:read`.
 - `GET /api/admin/security` ويتطلب permission `security:read`.
 - `GET /api/admin/audit` ويتطلب permission `audit:read`.
 
-الجلسة تستخدم cookie HttpOnly وSameSite=Strict، وتتحول إلى `__Host-` cookie مع Secure في الإنتاج. مخزن الجلسات الحالي داخل الذاكرة مناسب للنموذج فقط؛ قبل التوسع استخدم IdP أو مخزناً مشتركاً مع دعم revocation.
+الجلسة تستخدم cookie HttpOnly وSameSite=Strict، وتتحول إلى `__Host-` cookie مع Secure في الإنتاج. يستخدم production Redis للجلسات وstate الخاص بـ OIDC وRate limiting؛ التخزين داخل الذاكرة مخصص للمعاينة/الانتقال فقط.
 
 ## فحص الإعداد قبل التفعيل
 

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections import defaultdict, deque
 from dataclasses import dataclass
+from collections.abc import Callable
 import base64
 import binascii
 import hashlib
@@ -19,6 +20,7 @@ import re
 import secrets
 import threading
 import time
+import uuid
 from http.cookies import SimpleCookie
 
 
@@ -89,28 +91,43 @@ class AuditLog:
     must stream these records to an append-only, access-controlled sink.
     """
 
-    def __init__(self, max_events: int = 5000):
+    def __init__(self, max_events: int = 5000, sink: Callable[[dict], None] | None = None, sink_required: bool = False):
         self._events: deque[dict] = deque(maxlen=max_events)
         self._lock = threading.RLock()
         self._redaction_key = os.environ.get('AUDIT_REDACTION_KEY') or secrets.token_hex(32)
+        self._sink = sink
+        self._sink_required = sink_required
+
+    def set_sink(self, sink: Callable[[dict], None] | None, required: bool = False) -> None:
+        with self._lock:
+            self._sink = sink
+            self._sink_required = required
 
     def record(self, action: str, actor: str | None = None, success: bool = True, client_ip: str | None = None, details: dict | None = None) -> None:
         clean_details = {}
         for key, value in (details or {}).items():
-            clean_key = str(key)[:40]
-            clean_value = str(value).replace('\\n', ' ').replace('\\r', ' ')[:160]
+            clean_key = str(key).replace('\n', ' ').replace('\r', ' ')[:40]
+            clean_value = str(value).replace('\n', ' ').replace('\r', ' ').replace('\\n', ' ').replace('\\r', ' ')[:160]
             clean_details[clean_key] = clean_value
         event = {
-            'event_id': secrets.token_hex(8),
+            'event_id': str(uuid.uuid4()),
             'timestamp': int(time.time()),
-            'action': str(action)[:80],
-            'actor': str(actor)[:80] if actor else None,
+            'action': str(action).replace('\n', ' ').replace('\r', ' ')[:80],
+            'actor': str(actor).replace('\n', ' ').replace('\r', ' ')[:80] if actor else None,
             'success': bool(success),
             'client_fingerprint': hashlib.sha256((self._redaction_key + (client_ip or 'unknown')).encode('utf-8')).hexdigest()[:16],
             'details': clean_details,
         }
         with self._lock:
             self._events.append(event)
+            sink = self._sink
+            sink_required = self._sink_required
+        if sink:
+            try:
+                sink(event)
+            except Exception as error:
+                if sink_required:
+                    raise RuntimeError('audit_sink_unavailable') from error
 
     def recent(self, limit: int = 100) -> list[dict]:
         limit = max(1, min(int(limit), 100))

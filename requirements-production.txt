@@ -1,3 +1,8 @@
-# Runtime-only dependency for SESSION_STORE=redis.
-# The preview remains dependency-free and uses memory sessions.
+# Runtime-only dependencies. The preview remains dependency-free and uses local adapters.
 redis==8.1.0
+# OIDC discovery, PKCE callback, and RS256 ID-token verification.
+authlib==1.9.1
+cryptography==50.0.2
+# PostgreSQL connection pool and binary driver for the production repository.
+psycopg[binary]==3.3.6
+psycopg-pool==3.3.3

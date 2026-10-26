@@ -1,6 +1,7 @@
 import base64
 import os
 import unittest
+import uuid
 
 from security import AuditLog, IAMService, Identity, RedisLoginThrottle, RedisSessionStore, SessionStore, can, generate_totp_secret, hash_password, totp_code, verify_password, verify_totp
 
@@ -55,17 +56,26 @@ class SecurityPrimitiveTests(unittest.TestCase):
         store.revoke(session.token)
         self.assertIsNone(store.get(session.token, now=101))
 
+    def test_audit_log_can_stream_to_a_sink(self):
+        received = []
+        audit = AuditLog(sink=received.append, sink_required=True)
+        audit.record('sink.event', details={'key': 'value'})
+        self.assertEqual(received[0]['action'], 'sink.event')
+
     def test_audit_log_redacts_client_identity_and_bounds_details(self):
         audit = AuditLog(max_events=2)
         audit.record('test.event', actor='admin', client_ip='10.0.0.1')
-        audit.record('test.event.second', client_ip='10.0.0.2', details={'secret': 'a\\nb' * 100})
+        audit.record('test.event.second', client_ip='10.0.0.2', details={'secret': 'a\\nb' * 100, 'actual': 'line1\nline2\rline3'})
         audit.record('test.event.third', client_ip='10.0.0.3')
         events = audit.recent()
         self.assertEqual(len(events), 2)
         self.assertEqual(events[0]['action'], 'test.event.third')
+        uuid.UUID(events[0]['event_id'])
         self.assertNotIn('10.0.0.3', str(events[0]))
         self.assertLessEqual(len(events[1]['details']['secret']), 160)
         self.assertNotIn('\\n', events[1]['details']['secret'])
+        self.assertNotIn('\n', events[1]['details']['actual'])
+        self.assertNotIn('\r', events[1]['details']['actual'])
 
     def test_scrypt_password_records_are_salted_and_verifiable(self):
         first = hash_password('correct horse battery staple')

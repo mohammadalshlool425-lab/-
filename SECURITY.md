@@ -10,15 +10,17 @@
 - تعطيل التخزين المؤقت للوحة والخدمات الحساسة.
 - تحديد معدل الطلبات من الذاكرة على الخادم، مع استجابة `429` و`Retry-After`.
 - رفض المسارات غير المعروفة والطلبات ذات المسار غير الصالح.
-- عدم وجود API تغيّر الحالة في النموذج؛ طلبات `POST` و`PUT` و`DELETE` مرفوضة.
+- المسارات العامة لا تغيّر الحالة؛ مسارات المصادقة `POST /api/auth/login` و`POST /api/auth/logout` محمية بالـ MFA وCSRF، بينما طلبات `PUT` و`DELETE` والمسارات غير المعروفة مرفوضة.
 - عدم عكس query strings أو قيم المستخدم في سجلات الخادم.
 - رؤوس `X-Frame-Options` و`Strict-Transport-Security` عند تشغيل بيئة الإنتاج.
 - لوحة مدير عام تجريبية تعرض MFA، سجل التدقيق، المخاطر، النسخ الاحتياطية، ومحاولات الدخول غير المعتادة.
 - قائمة أصول allowlist فقط للـ manifest وfavicon وrobots، مع رفض المسارات العشوائية.
 - اختبارات آلية لـ CSP nonce، الرؤوس، HTTP methods، المسارات غير المعروفة، وفحص الجاهزية.
 - نقطتا تشغيل منفصلتان للـ liveness (`/health`) والـ readiness (`/ready`) لتسهيل المراقبة دون كشف بيانات تشغيلية.
-- أساس IAM محلي اختياري: scrypt لكلمات المرور، TOTP متوافق مع RFC 6238، جلسات HttpOnly، CSRF token، وRBAC بالـ permissions.
-- سجل تدقيق runtime محدود ومُنقّح مع endpoint محمي `GET /api/admin/audit`; يجب بثه إلى مخزن append-only قبل الإنتاج.
+- أساس IAM محلي للمعاينة/الانتقال فقط: scrypt لكلمات المرور، TOTP متوافق مع RFC 6238، جلسات HttpOnly، CSRF token، وRBAC بالـ permissions.
+- OIDC إنتاجي عبر Authorization Code + PKCE، state/nonce أحادية الاستخدام، discovery مقيد بـ HTTPS، وتحقق RS256 من ID token مع issuer/audience/expiry/nonce وربط أدوار Keycloak.
+- إعداد OIDC يرفض MFA ضعيفاً: يجب أن يثبت claim `amr` استخدام Passkey/WebAuthn (`webauthn` أو `fido2`) أو TOTP (`otp`) وفق إعداد `OIDC_REQUIRED_AMR`؛ Keycloak هو المسؤول عن رحلة WebAuthn الفعلية.
+- سجل تدقيق runtime محدود ومُنقّح مع endpoint محمي `GET /api/admin/audit`; عند `DATA_BACKEND=postgres` يُكتب synchronously إلى `audit_events` ويصبح فشل المخزن فشلاً مغلقاً، مع استمرار الحاجة إلى retention/backup append-only مُدار.
 - قوالب Reverse Proxy في `deploy/` لـ Nginx وCaddy، مع TLS حديث، rate limiting، وحدود حجم الطلب.
 - GitHub Actions مع اختبارات متعددة لإصدارات Python، CodeQL، ومراجعة تغييرات الاعتماديات.
 - مخطط PostgreSQL يفرض JOD، idempotency، تشفير العناوين على مستوى التطبيق، وحدوداً منفصلة للتدقيق.
@@ -34,7 +36,8 @@
 - الجلسات داخل الذاكرة افتراضياً للمعاينة، ويتوفر RedisSessionStore عبر `SESSION_STORE=redis` للنسخ المتعددة؛ استخدم `rediss://` وشهادة موثوقة في الإنتاج.
 - يتوفر RedisLoginThrottle عبر `RATE_LIMIT_STORE=redis`، ويستخدم مفاتيح مجزأة وعدادات ذرية وTTL للقفل؛ لا يعتمد على عدادات ذاكرة نسخة واحدة في الإنتاج.
 - طوابير المهام تستخدم Redis Streams وconsumer groups وacknowledgement وdead-letter؛ لا تُحفظ أسرار مزودي الدفع أو الإشعارات داخل payloads.
-- `validate_production_config.py` يرفض تشغيل الخدمة في production عند غياب OIDC أو PostgreSQL أو Redis/TLS أو WAF managed، ولا يطبع قيم الأسرار.
+- `validate_production_config.py` يرفض تشغيل الخدمة في production عند غياب OIDC أو PostgreSQL أو Redis/TLS أو WAF managed، ويشترط `DATA_BACKEND=postgres` ولا يطبع قيم الأسرار.
+- لوحة الإدارة لا تعرض أرقاماً اصطناعية في production؛ قراءات الإدارة تأتي من PostgreSQL، وتصبح جاهزية الخدمة غير مكتملة عند غياب مخزن البيانات.
 
 ## قبل الإطلاق الفعلي
 
@@ -49,7 +52,7 @@
 ## تشغيل آمن محلياً
 
 ```bash
-APP_ENV=production ENABLE_HSTS=1 python app.py
+APP_ENV=development python app.py
 ```
 
-في بيئة المعاينة تبقى `APP_ENV` على قيمتها الافتراضية حتى لا تمنع سياسة منع الإطارات معاينة Arena من العمل.
+تشغيل `APP_ENV=production` يمر عبر `validate_production_env` ويرفض البدء حتى تكتمل إعدادات OIDC وPostgreSQL وRedis وWAF. لا تستخدم IAM المحلي كاختصار لتجاوز هذا الحاجز.

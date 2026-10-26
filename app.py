@@ -1,6 +1,6 @@
 from collections import defaultdict, deque
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 import json
 import os
 import secrets
@@ -8,6 +8,9 @@ import threading
 import time
 from pathlib import Path
 
+from config import validate_production_env
+from oidc import OIDCClient, OIDCError
+from repository import DataStoreError, PostgresRepository
 from security import IAMService, can
 
 
@@ -1386,6 +1389,10 @@ HTML = r'''<!doctype html>
           body: JSON.stringify(payload)
         });
         const result = await response.json();
+        if (result.error === 'oidc_required' && result.login_url) {
+          window.location.assign(result.login_url);
+          return;
+        }
         if (!response.ok) throw new Error(result.error || 'login_failed');
         adminCsrfToken = result.csrf_token || '';
         closeOverlay('adminAuthModal');
@@ -1503,7 +1510,7 @@ STATIC_ASSETS = {
 }
 
 
-APP_VERSION = '0.8.1'
+APP_VERSION = '0.9.0'
 MAX_PATH_LENGTH = 2048
 RATE_LIMIT_WINDOW = 60
 RATE_LIMIT_MAX_REQUESTS = 180
@@ -1513,6 +1520,23 @@ _rate_buckets = defaultdict(deque)
 _rate_lock = threading.Lock()
 API_BODY_LIMIT = 16 * 1024
 IAM = IAMService()
+OIDC = None
+OIDC_INIT_ERROR = None
+if os.environ.get('IAM_MODE', 'local').lower() == 'oidc':
+    try:
+        OIDC = OIDCClient.from_environment()
+    except OIDCError as error:
+        OIDC_INIT_ERROR = str(error)
+
+DATA = None
+DATA_INIT_ERROR = None
+if os.environ.get('DATA_BACKEND', 'memory').lower() == 'postgres' or os.environ.get('APP_ENV', 'development').lower() == 'production':
+    try:
+        DATA = PostgresRepository.from_environment()
+    except DataStoreError as error:
+        DATA_INIT_ERROR = str(error)
+if DATA is not None:
+    IAM.audit_log.set_sink(DATA.append_audit, required=True)
 
 
 def remove_marked_blocks(document, start_marker, end_marker):
@@ -1669,6 +1693,42 @@ class AppHandler(BaseHTTPRequestHandler):
     def _send_forbidden(self, include_body=True):
         self._send_json({'error': 'insufficient_permissions'}, 403, include_body, {'Cache-Control': 'no-store'})
 
+    def _serve_oidc_login(self, include_body=True):
+        if OIDC is None:
+            self._send_json({'error': 'identity_provider_unavailable'}, 503, include_body, {'Cache-Control': 'no-store'})
+            return
+        try:
+            location = OIDC.authorization_url()
+        except OIDCError:
+            IAM.audit_log.record('auth.oidc.authorization_failed', success=False, client_ip=self._client_ip())
+            self._send_json({'error': 'identity_provider_unavailable'}, 503, include_body, {'Cache-Control': 'no-store'})
+            return
+        self._send_payload(b'', 'text/plain; charset=utf-8', 303, False, {'Location': location, 'Cache-Control': 'no-store'})
+
+    def _serve_oidc_callback(self, include_body=True):
+        if OIDC is None:
+            self._send_json({'error': 'identity_provider_unavailable'}, 503, include_body, {'Cache-Control': 'no-store'})
+            return
+        query = parse_qs(urlsplit(self.path or '').query, keep_blank_values=True)
+        if query.get('error') or not query.get('code') or not query.get('state'):
+            IAM.audit_log.record('auth.oidc.callback_rejected', success=False, client_ip=self._client_ip())
+            self._send_json({'error': 'authentication_failed'}, 401, include_body, {'Cache-Control': 'no-store'})
+            return
+        try:
+            identity = OIDC.authenticate_callback(query['code'][0], query['state'][0])
+            session = IAM.sessions.create(identity)
+        except OIDCError:
+            IAM.audit_log.record('auth.oidc.callback_failed', success=False, client_ip=self._client_ip())
+            self._send_json({'error': 'authentication_failed'}, 401, include_body, {'Cache-Control': 'no-store'})
+            return
+        IAM.audit_log.record('auth.oidc.login_succeeded', actor=identity.username, success=True, client_ip=self._client_ip(), details={'roles': ','.join(identity.roles)})
+        headers = {
+            'Location': '/',
+            'Set-Cookie': IAM.session_cookie(session, self._is_secure_request()),
+            'Cache-Control': 'no-store',
+        }
+        self._send_payload(b'', 'text/plain; charset=utf-8', 303, False, headers)
+
     def _serve_api(self, path, method, include_body=True):
         if path == '/api/auth/status' and method in {'GET', 'HEAD'}:
             session = self._current_session()
@@ -1685,6 +1745,12 @@ class AppHandler(BaseHTTPRequestHandler):
             return
 
         if path == '/api/auth/login' and method == 'POST':
+            if os.environ.get('IAM_MODE', 'local').lower() == 'oidc':
+                if OIDC is None:
+                    self._send_json({'error': 'identity_provider_unavailable'}, 503, True, {'Cache-Control': 'no-store'})
+                else:
+                    self._send_json({'error': 'oidc_required', 'login_url': '/auth/login'}, 409, True, {'Cache-Control': 'no-store'})
+                return
             body = self._read_json_body()
             if body is None:
                 return
@@ -1744,23 +1810,26 @@ class AppHandler(BaseHTTPRequestHandler):
                 self._send_forbidden(include_body)
                 return
             IAM.audit_log.record('admin.access.granted', actor=session.identity.username, success=True, client_ip=self._client_ip(), details={'resource': path})
-            if path.endswith('/security'):
-                payload = {
-                    'risk_score': 96,
-                    'mfa_coverage': 98.4,
-                    'blocked_attempts': 27,
-                    'critical_vulnerabilities': 0,
-                    'backup_age_minutes': 12,
-                }
-            elif path.endswith('/audit'):
-                payload = {'events': IAM.audit_log.recent()}
-            else:
-                payload = {
-                    'orders_today': 1284,
-                    'service_volume_jod': 24680,
-                    'active_providers': 318,
-                    'customer_satisfaction': 4.9,
-                }
+            try:
+                if DATA is None:
+                    if os.environ.get('APP_ENV', 'development').lower() == 'production':
+                        self._send_json({'error': 'data_store_unavailable'}, 503, include_body, {'Cache-Control': 'no-store'})
+                        return
+                    if path.endswith('/security'):
+                        payload = {'risk_score': None, 'mfa_coverage': None, 'blocked_attempts': 0, 'critical_vulnerabilities': None, 'backup_age_minutes': None}
+                    elif path.endswith('/audit'):
+                        payload = {'events': IAM.audit_log.recent()}
+                    else:
+                        payload = {'orders_today': 0, 'service_volume_jod': 0, 'active_providers': 0, 'customer_satisfaction': 0}
+                elif path.endswith('/security'):
+                    payload = DATA.admin_security()
+                elif path.endswith('/audit'):
+                    payload = {'events': DATA.recent_audit()}
+                else:
+                    payload = DATA.admin_overview()
+            except DataStoreError:
+                self._send_json({'error': 'data_store_unavailable'}, 503, include_body, {'Cache-Control': 'no-store'})
+                return
             self._send_json(payload, 200, include_body, {'Cache-Control': 'no-store', 'Vary': 'Cookie'})
             return
 
@@ -1774,6 +1843,12 @@ class AppHandler(BaseHTTPRequestHandler):
         if path is None:
             self._send_json({'error': 'bad_request', 'message': 'طلب غير صالح.'}, 400, include_body)
             return
+        if path == '/auth/login' and method == 'GET':
+            self._serve_oidc_login(include_body)
+            return
+        if path == '/auth/callback' and method == 'GET':
+            self._serve_oidc_callback(include_body)
+            return
         if path.startswith('/api/'):
             self._serve_api(path, method, include_body)
             return
@@ -1782,8 +1857,11 @@ class AppHandler(BaseHTTPRequestHandler):
             return
         if path == '/ready':
             assets_ready = all(file_path.is_file() for file_path, _ in STATIC_ASSETS.values())
-            status = 200 if assets_ready else 503
-            self._send_json({'status': 'ready' if assets_ready else 'not_ready', 'app': 'ezwatek', 'version': APP_VERSION}, status, include_body)
+            production = os.environ.get('APP_ENV', 'development').lower() == 'production'
+            data_ready = DATA.ready() if DATA is not None else not production
+            ready = assets_ready and data_ready
+            status = 200 if ready else 503
+            self._send_json({'status': 'ready' if ready else 'not_ready', 'app': 'ezwatek', 'version': APP_VERSION}, status, include_body)
             return
         asset = STATIC_ASSETS.get(path)
         if asset:
@@ -1841,6 +1919,18 @@ class AppHandler(BaseHTTPRequestHandler):
 
 
 if __name__ == '__main__':
+    startup_issues = validate_production_env()
+    if startup_issues:
+        print('Production configuration rejected:')
+        for issue in startup_issues:
+            print(f'- {issue}')
+        raise SystemExit(78)
+    if os.environ.get('IAM_MODE', 'local').lower() == 'oidc' and OIDC is None:
+        print('OIDC initialization rejected: provider configuration or production dependencies are unavailable.')
+        raise SystemExit(78)
+    if (os.environ.get('DATA_BACKEND', 'memory').lower() == 'postgres' or os.environ.get('APP_ENV', 'development').lower() == 'production') and DATA is None:
+        print('PostgreSQL initialization rejected: production data store is unavailable.')
+        raise SystemExit(78)
     port = int(os.environ.get('PORT', '8000'))
     server = ThreadingHTTPServer(('0.0.0.0', port), AppHandler)
     print(f'عزوتك is running on http://0.0.0.0:{port}')

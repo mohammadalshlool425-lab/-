@@ -28,8 +28,8 @@
 
 ## المرحلة 2 — IAM إنتاجي
 
-- ربط Keycloak/OIDC عبر Authorization Code + PKCE.
-- Passkeys/WebAuthn للمديرين، وTOTP كخيار استرداد.
+- ربط Keycloak/OIDC عبر Authorization Code + PKCE؛ عميل OIDC وcallback والتحقق من ID token موجودان، ويبقى اختبار issuer الحقيقي وتعيين الأدوار في بيئة التشغيل.
+- Passkeys/WebAuthn للمديرين، وTOTP كخيار استرداد؛ العميل يفرض `amr` مناسباً، وتُفعّل سياسات WebAuthn داخل Keycloak بعد اعتماد issuer.
 - فصل نطاق لوحة الإدارة عن نطاق العملاء.
 - جلسات مشتركة قابلة للإبطال عبر Redis أو IdP.
 - مراجعة RBAC على مستوى المورد، وليس الدور العام فقط.
@@ -39,7 +39,7 @@
 
 ## المرحلة 3 — البيانات والعمليات الحقيقية
 
-- PostgreSQL migrations مع Alembic؛ schema أولي مضبوط موجود في `db/migrations/0001_initial.sql`.
+- PostgreSQL: migration SQL أولي مضبوط موجود في `db/migrations/0001_initial.sql`، وقراءات لوحة الإدارة/كتابة التدقيق تمر عبر `repository.py` عند تفعيل DATA_BACKEND=postgres؛ تشغيل Alembic وإدارة الإصدارات التالية يبقيان ضمن pipeline قاعدة البيانات.
 - Redis للجلسات، queues، idempotency، وrate limiting الموزع؛ session adapter وlogin throttle وRedis Streams worker متوفرة، ويبقى ربط البيئة الخارجية وhandlers الخاصة بالدفع/الإشعارات مطلوباً.
 - نموذج مستخدمين، مزودين، خدمات، حجوزات، مدفوعات، وتقييمات.
 - سجل تدقيق append-only مع retention ونسخ احتياطية مشفرة.

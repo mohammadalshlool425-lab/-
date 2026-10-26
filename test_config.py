@@ -21,10 +21,12 @@ class ProductionConfigTests(unittest.TestCase):
             'PUBLIC_ORIGIN': 'https://app.azwatek.jo',
             'OIDC_ISSUER_URL': 'https://identity.azwatek.jo/realms/azwatek',
             'OIDC_CLIENT_ID': 'azwatek-web',
+            'OIDC_REQUIRED_AMR': 'webauthn,fido2,otp',
             'OIDC_REDIRECT_URI': 'https://app.azwatek.jo/auth/callback',
             'SESSION_STORE': 'redis',
             'RATE_LIMIT_STORE': 'redis',
             'REDIS_URL': 'rediss://redis.internal:6380/0',
+            'DATA_BACKEND': 'postgres',
             'DATABASE_URL': 'postgresql://runtime:secret@postgres.internal:5432/azwatek',
             'WAF_MODE': 'managed',
         }
@@ -42,6 +44,7 @@ class ProductionConfigTests(unittest.TestCase):
             'SESSION_STORE': 'redis',
             'RATE_LIMIT_STORE': 'redis',
             'REDIS_URL': 'rediss://redis.internal:6380/0',
+            'DATA_BACKEND': 'postgres',
             'DATABASE_URL': 'postgresql://runtime:secret@postgres.internal:5432/azwatek',
             'WAF_MODE': 'managed',
         }

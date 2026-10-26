@@ -1,6 +1,6 @@
 # قاعدة بيانات عزوتك
 
-المجلد يحتوي migrations PostgreSQL للإنتاج. لا يتم تشغيلها تلقائياً من التطبيق؛ شغّلها من pipeline migration منفصل وبحساب لا يستخدمه runtime.
+المجلد يحتوي migrations PostgreSQL للإنتاج. لا يتم تشغيلها تلقائياً من التطبيق؛ شغّلها من pipeline migration منفصل وبحساب لا يستخدمه runtime. يقرأ `repository.py` لوحة الإدارة ويكتب audit events بحساب runtime محدود.
 
 ## أول migration
 
