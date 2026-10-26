@@ -1,0 +1,13 @@
+__pycache__/
+*.py[cod]
+.env
+.env.*
+!.env.example
+.venv/
+*.log
+*.pem
+*.key
+secrets/
+data/
+*.sqlite3
+.DS_Store
