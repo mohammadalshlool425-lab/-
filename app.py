@@ -4,6 +4,8 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from urllib.parse import parse_qs, urlsplit
 import base64
 import binascii
+import hashlib
+import hmac
 import json
 import re
 import os
@@ -1714,7 +1716,7 @@ STATIC_ASSETS = {
 }
 
 
-APP_VERSION = '0.13.0'
+APP_VERSION = '0.14.0'
 SERVICE_CATALOG = [
     {'slug': 'home-maintenance', 'name_ar': 'صيانة منزلية', 'name_en': 'Home maintenance', 'minimum_amount_minor': 1500, 'currency': 'JOD'},
     {'slug': 'cleaning', 'name_ar': 'تنظيف وتعقيم', 'name_en': 'Cleaning and sanitization', 'minimum_amount_minor': 1200, 'currency': 'JOD'},
@@ -1786,8 +1788,7 @@ def remove_marked_blocks(document, start_marker, end_marker):
     return document
 
 
-def _encrypt_order_address(address: str) -> tuple[bytes, bytes]:
-    """Encrypt a customer address with the deployment-managed AES-GCM key."""
+def _order_encryption_key() -> bytes:
     encoded_key = os.environ.get('ORDER_ADDRESS_ENCRYPTION_KEY', '').strip()
     if not encoded_key:
         raise RuntimeError('address_encryption_unavailable')
@@ -1797,6 +1798,12 @@ def _encrypt_order_address(address: str) -> tuple[bytes, bytes]:
         raise RuntimeError('address_encryption_unavailable') from error
     if len(key) != 32:
         raise RuntimeError('address_encryption_unavailable')
+    return key
+
+
+def _encrypt_order_address(address: str) -> tuple[bytes, bytes]:
+    """Encrypt a customer address with the deployment-managed AES-GCM key."""
+    key = _order_encryption_key()
     try:
         from cryptography.hazmat.primitives.ciphers.aead import AESGCM
     except ImportError as error:
@@ -1816,6 +1823,25 @@ def _parse_order_datetime(value: object):
     if parsed.tzinfo is None or parsed.utcoffset() is None:
         raise OrderInputError('schedule_timezone_required')
     return parsed.astimezone(timezone.utc)
+
+
+def _order_request_fingerprint(request: dict) -> bytes:
+    canonical = json.dumps(
+        {
+            'service_slug': request['service_slug'],
+            'city': request['city'],
+            'address': request['address'],
+            'estimated_amount_minor': request['estimated_amount_minor'],
+            'scheduled_from': request['scheduled_from'].isoformat(),
+            'scheduled_to': request['scheduled_to'].isoformat(),
+            'phone_e164': request.get('phone_e164'),
+            'display_name': request.get('display_name'),
+        },
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(',', ':'),
+    ).encode('utf-8')
+    return hmac.new(_order_encryption_key(), b'ezwatek-order-fingerprint-v1:' + canonical, hashlib.sha256).digest()
 
 
 def _parse_order_request(body: dict, idempotency_key: str) -> dict:
@@ -1864,7 +1890,7 @@ def _parse_order_request(body: dict, idempotency_key: str) -> dict:
         if not isinstance(display_name, str) or not 1 <= len(display_name.strip()) <= 100:
             raise OrderInputError('invalid_display_name')
         display_name = display_name.strip()
-    return {
+    request = {
         'service_slug': service_slug,
         'city': city,
         'address': address,
@@ -1875,6 +1901,8 @@ def _parse_order_request(body: dict, idempotency_key: str) -> dict:
         'display_name': display_name,
         'idempotency_key': idempotency_key,
     }
+    request['request_fingerprint'] = _order_request_fingerprint(request)
+    return request
 
 
 class AppHandler(BaseHTTPRequestHandler):

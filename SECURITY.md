@@ -23,7 +23,7 @@
 - سجل تدقيق runtime محدود ومُنقّح مع endpoint محمي `GET /api/admin/audit`; عند `DATA_BACKEND=postgres` يُكتب synchronously إلى `audit_events` ويصبح فشل المخزن فشلاً مغلقاً، مع استمرار الحاجة إلى retention/backup append-only مُدار.
 - قوالب Reverse Proxy في `deploy/` لـ Nginx وCaddy، مع TLS حديث، rate limiting، وحدود حجم الطلب.
 - GitHub Actions مع اختبارات متعددة لإصدارات Python، Ruff، Bandit، pip-audit، CodeQL، DAST smoke، ومراجعة تغييرات الاعتماديات وبناء صورة non-root.
-- مخطط PostgreSQL يفرض JOD، idempotency، تشفير العناوين على مستوى التطبيق، وحدوداً منفصلة للتدقيق. `POST /api/orders` لا يعمل إلا لجلسة OIDC بدور `customer`، ويتطلب CSRF و`Idempotency-Key` ويكتب الطلب و`order.requested` في معاملة واحدة.
+- مخطط PostgreSQL يفرض JOD، idempotency keyed، تشفير العناوين على مستوى التطبيق، وحدوداً منفصلة للتدقيق. `POST /api/orders` لا يعمل إلا لجلسة OIDC بدور `customer`، ويتطلب CSRF و`Idempotency-Key` ويكتب الطلب و`order.requested` في معاملة واحدة.
 
 ## IAM الحالي
 

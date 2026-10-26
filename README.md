@@ -1,6 +1,6 @@
 # عزوتك | خدماتك أقرب
 
-إصدار النموذج الحالي: `0.13.0`
+إصدار النموذج الحالي: `0.14.0`
 
 نموذج تفاعلي RTL لمنصة خدمات منزلية أردنية، مع واجهة العميل ولوحة المدير العام ومركز حماية تشغيلي.
 
@@ -58,7 +58,7 @@ python -m py_compile app.py security.py jobs.py worker.py config.py oidc.py scri
 - `test_app.py` و`test_security.py` و`test_schema.py` و`test_config.py` و`test_jobs.py` و`test_worker.py` و`test_oidc.py` و`test_repository.py`: اختبارات الرؤوس، CSP nonce، IAM، MFA، OIDC، PostgreSQL repository، الجلسات، الإعداد الإنتاجي، الطوابير والعامل ومخطط قاعدة البيانات.
 - `BRANDING.md`: خيارات اسم المنصة ومعايير الاختيار داخل السوق الأردني.
 - `ROADMAP.md`: مراحل نقل النموذج إلى IAM/OIDC وبيانات وتشغيل إنتاجي.
-- `db/migrations/0001_initial.sql` و`0002_seed_service_catalog.sql`: مخطط PostgreSQL للحجوزات والمزودين والمدفوعات والتدقيق، وكتالوج الخدمات الأردني العام دون بيانات عملاء أو مزودين.
+- `db/migrations/0001_initial.sql` و`0002_seed_service_catalog.sql` و`0003_order_request_fingerprint.sql`: مخطط PostgreSQL للحجوزات والمزودين والمدفوعات والتدقيق، وكتالوج الخدمات الأردني العام وبصمة idempotency keyed دون بيانات عملاء أو مزودين.
 - `db/README.md`: حدود الصلاحيات والنسخ الاحتياطي وتشفير البيانات.
 - `requirements-dev.txt` و`pyproject.toml`: أدوات Ruff وBandit وpip-audit للتحقق المحلي وCI.
 - `.github/workflows/quality-security.yml`: اختبارات CI وSAST وSCA وCodeQL وDependency Review وبناء صورة non-root.

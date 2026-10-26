@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta, timezone
 import os
 import re
 import threading
@@ -40,7 +41,7 @@ class AppSecurityTests(unittest.TestCase):
     def test_security_headers_are_present(self):
         response = self.fetch('/health')
         self.assertEqual(response.status, 200)
-        self.assertIn('"version":"0.13.0"', response.read().decode('utf-8'))
+        self.assertIn('"version":"0.14.0"', response.read().decode('utf-8'))
         self.assertEqual(response.headers['X-Content-Type-Options'], 'nosniff')
         self.assertEqual(response.headers['Referrer-Policy'], 'no-referrer')
         self.assertEqual(response.headers['Cache-Control'], 'no-store, max-age=0')
@@ -62,6 +63,32 @@ class AppSecurityTests(unittest.TestCase):
         response = self.fetch('/api/auth/status')
         self.assertEqual(response.status, 200)
         self.assertEqual(response.read().decode('utf-8'), '{"authenticated":false,"auth_mode":"local-preview"}')
+
+    def test_order_request_fingerprint_is_stable_but_payload_bound(self):
+        original_key = os.environ.get('ORDER_ADDRESS_ENCRYPTION_KEY')
+        try:
+            os.environ['ORDER_ADDRESS_ENCRYPTION_KEY'] = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+            start = datetime.now(timezone.utc) + timedelta(days=1)
+            body = {
+                'service_slug': 'cleaning',
+                'city': 'amman',
+                'address': 'شارع الجامعة، بناية ١٢',
+                'estimated_amount_minor': 1500,
+                'scheduled_from': start.isoformat(),
+                'scheduled_to': (start + timedelta(hours=2)).isoformat(),
+            }
+            first = app._parse_order_request(body, 'request-key-123456')
+            second = app._parse_order_request(dict(body), 'request-key-123456')
+            changed = dict(body, address='شارع مختلف، بناية ١٣')
+            third = app._parse_order_request(changed, 'request-key-123456')
+            self.assertEqual(first['request_fingerprint'], second['request_fingerprint'])
+            self.assertNotEqual(first['request_fingerprint'], third['request_fingerprint'])
+            self.assertEqual(len(first['request_fingerprint']), 32)
+        finally:
+            if original_key is None:
+                os.environ.pop('ORDER_ADDRESS_ENCRYPTION_KEY', None)
+            else:
+                os.environ['ORDER_ADDRESS_ENCRYPTION_KEY'] = original_key
 
     def test_customer_orders_require_authentication(self):
         with self.assertRaises(HTTPError) as caught:

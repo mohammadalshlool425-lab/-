@@ -27,7 +27,7 @@ done
 - مفاتيح التشفير تُدار خارج قاعدة البيانات عبر Secret Manager/KMS.
 - `audit_events` append-only من منظور التطبيق ولا يجب منح runtime صلاحية `UPDATE` أو `DELETE`.
 - مبالغ الدفع تخزّن كـ minor units بالدينار الأردني لتجنب أخطاء floating point.
-- `idempotency_key` مطلوب لمنع تكرار الحجوزات عند إعادة المحاولة.
+- `idempotency_key` مطلوب لمنع تكرار الحجوزات عند إعادة المحاولة، و`request_fingerprint` keyed يرفض إعادة استخدام المفتاح مع payload مختلف دون تخزين العنوان كنص أو hash مكشوف.
 
 ## Redis والجلسات
 

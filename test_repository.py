@@ -83,6 +83,7 @@ class RepositoryTests(unittest.TestCase):
             address_ciphertext=b'encrypted',
             address_nonce=b'012345678901',
             address_key_version=1,
+            request_fingerprint=b'fingerprint-12345678901234567890',
             estimated_amount_minor=1500,
             scheduled_from=start,
             scheduled_to=end,
@@ -92,8 +93,10 @@ class RepositoryTests(unittest.TestCase):
         self.assertEqual(order['public_code'], 'EZW-ABC123')
         self.assertEqual(order['currency'], 'JOD')
         self.assertTrue(any('INSERT INTO order_events' in sql for sql, _ in self.pool.connection_instance.queries))
-        order_sql = next(sql for sql, _ in self.pool.connection_instance.queries if 'INSERT INTO orders' in sql)
+        order_sql, order_params = next((sql, params) for sql, params in self.pool.connection_instance.queries if 'INSERT INTO orders' in sql)
         self.assertIn('ON CONFLICT (customer_id, idempotency_key) DO NOTHING', order_sql)
+        self.assertIn('request_fingerprint', order_sql)
+        self.assertEqual(order_sql.count('%s'), len(order_params))
 
     def test_admin_overview_is_read_from_database_row(self):
         self.assertEqual(self.repository.admin_overview(), {

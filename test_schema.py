@@ -5,6 +5,7 @@ import unittest
 MIGRATIONS = Path(__file__).parent / 'db' / 'migrations'
 SCHEMA = MIGRATIONS / '0001_initial.sql'
 CATALOG = MIGRATIONS / '0002_seed_service_catalog.sql'
+FINGERPRINT = MIGRATIONS / '0003_order_request_fingerprint.sql'
 
 
 class SchemaSafetyTests(unittest.TestCase):
@@ -22,6 +23,12 @@ class SchemaSafetyTests(unittest.TestCase):
         self.assertNotIn('INSERT INTO app_users', sql)
         self.assertNotIn('INSERT INTO orders', sql)
         self.assertNotIn('INSERT INTO payments', sql)
+        self.assertNotIn('COMMIT;', sql)
+
+    def test_order_fingerprint_migration_is_non_destructive(self):
+        sql = FINGERPRINT.read_text(encoding='utf-8')
+        self.assertIn('ADD COLUMN IF NOT EXISTS request_fingerprint', sql)
+        self.assertNotIn('DROP TABLE', sql.upper())
         self.assertNotIn('COMMIT;', sql)
 
     def test_schema_contains_core_entities_and_safety_constraints(self):

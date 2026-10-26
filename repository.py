@@ -104,6 +104,7 @@ class PostgresRepository:
         address_ciphertext: bytes,
         address_nonce: bytes,
         address_key_version: int,
+        request_fingerprint: bytes,
         estimated_amount_minor: int,
         scheduled_from,
         scheduled_to,
@@ -117,6 +118,8 @@ class PostgresRepository:
             raise OrderInputError("required_order_field")
         if not isinstance(address_ciphertext, bytes) or not isinstance(address_nonce, bytes):
             raise OrderInputError("encrypted_address_required")
+        if not isinstance(request_fingerprint, bytes) or len(request_fingerprint) != 32:
+            raise OrderInputError("request_fingerprint_required")
         try:
             estimated_amount_minor = int(estimated_amount_minor)
             address_key_version = int(address_key_version)
@@ -161,7 +164,8 @@ class PostgresRepository:
                     existing = connection.execute(
                         """
                         SELECT id::text, public_code, service_id, status, city,
-                               estimated_amount_minor, currency, scheduled_from, scheduled_to
+                               estimated_amount_minor, currency, scheduled_from, scheduled_to,
+                               request_fingerprint
                         FROM orders
                         WHERE customer_id = %s AND idempotency_key = %s
                         FOR UPDATE
@@ -169,20 +173,20 @@ class PostgresRepository:
                         (customer_id, idempotency_key),
                     ).fetchone()
                     if existing:
-                        self._validate_replay(existing, service_id, city, estimated_amount_minor, currency, scheduled_from, scheduled_to)
+                        self._validate_replay(existing, service_id, city, estimated_amount_minor, currency, scheduled_from, scheduled_to, request_fingerprint)
                         return self._order_payload(existing), True
 
                     order = connection.execute(
                         """
                         INSERT INTO orders (
                             public_code, customer_id, service_id, status, city,
-                            address_ciphertext, address_nonce, address_key_version,
+                            address_ciphertext, address_nonce, address_key_version, request_fingerprint,
                             estimated_amount_minor, currency, scheduled_from,
                             scheduled_to, idempotency_key
                         )
                         VALUES (
                             'EZW-' || upper(encode(gen_random_bytes(5), 'hex')),
-                            %s, %s, 'requested', %s, %s, %s, %s, %s, %s,
+                            %s, %s, 'requested', %s, %s, %s, %s, %s, %s, %s,
                             %s, %s, %s
                         )
                         ON CONFLICT (customer_id, idempotency_key) DO NOTHING
@@ -196,6 +200,7 @@ class PostgresRepository:
                             address_ciphertext,
                             address_nonce,
                             address_key_version,
+                            request_fingerprint,
                             estimated_amount_minor,
                             currency,
                             scheduled_from,
@@ -207,7 +212,8 @@ class PostgresRepository:
                         replay = connection.execute(
                             """
                             SELECT id::text, public_code, service_id, status, city,
-                                   estimated_amount_minor, currency, scheduled_from, scheduled_to
+                                   estimated_amount_minor, currency, scheduled_from, scheduled_to,
+                                   request_fingerprint
                             FROM orders
                             WHERE customer_id = %s AND idempotency_key = %s
                             FOR UPDATE
@@ -216,7 +222,7 @@ class PostgresRepository:
                         ).fetchone()
                         if not replay:
                             raise OrderInputError("order_not_created")
-                        self._validate_replay(replay, service_id, city, estimated_amount_minor, currency, scheduled_from, scheduled_to)
+                        self._validate_replay(replay, service_id, city, estimated_amount_minor, currency, scheduled_from, scheduled_to, request_fingerprint)
                         return self._order_payload(replay), True
                     connection.execute(
                         """
@@ -232,7 +238,7 @@ class PostgresRepository:
             raise DataStoreError("PostgreSQL order write failed") from error
 
     @staticmethod
-    def _validate_replay(existing, service_id, city, estimated_amount_minor, currency, scheduled_from, scheduled_to) -> None:
+    def _validate_replay(existing, service_id, city, estimated_amount_minor, currency, scheduled_from, scheduled_to, request_fingerprint) -> None:
         if (
             str(existing[2]) != str(service_id)
             or str(existing[4]) != city
@@ -240,6 +246,7 @@ class PostgresRepository:
             or existing[6] != currency
             or existing[7] != scheduled_from
             or existing[8] != scheduled_to
+            or bytes(existing[9] or b'') != request_fingerprint
         ):
             raise IdempotencyConflict("idempotency_key_reused")
 
