@@ -8,6 +8,8 @@ import threading
 import time
 from pathlib import Path
 
+from security import IAMService, can
+
 
 HTML = r'''<!doctype html>
 <html lang="ar" dir="rtl">
@@ -691,6 +693,19 @@ HTML = r'''<!doctype html>
     .auth-divider::before, .auth-divider::after { content: ""; height: 1px; flex: 1; background: var(--line); }
     .auth-secondary { width: 100%; border: 1px solid var(--line); color: var(--ink-2); background: #fff; border-radius: 11px; padding: 10px; font-size: 10px; font-weight: 800; }
     .auth-secondary:hover { background: #f4faf7; border-color: #b9ded3; }
+    .admin-auth-modal { width: min(100%, 430px); }
+    .admin-auth-badge { width: 52px; height: 52px; display: grid; place-items: center; color: #6875b4; background: #eceefc; border-radius: 17px; margin: 0 auto 14px; }
+    .admin-auth-badge .icon { width: 25px; height: 25px; }
+    .admin-auth-modal .modal-head { padding-bottom: 5px; }
+    .admin-auth-modal .modal-head h2 { font-size: 18px; }
+    .admin-auth-copy { color: var(--muted); font-size: 10px; line-height: 1.8; text-align: center; margin: 0 auto 17px; max-width: 300px; }
+    .admin-auth-field { display: flex; align-items: center; gap: 9px; height: 44px; padding: 0 11px; border: 1px solid var(--line); border-radius: 12px; margin-bottom: 9px; }
+    .admin-auth-field:focus-within { border-color: #9eabd7; box-shadow: 0 0 0 3px rgba(99,113,180,.1); }
+    .admin-auth-field .icon { width: 16px; height: 16px; color: #6875b4; flex: 0 0 auto; }
+    .admin-auth-field input { width: 100%; min-width: 0; border: 0; outline: 0; color: var(--ink); background: transparent; font-size: 11px; direction: ltr; text-align: right; }
+    .admin-auth-error { color: #b85e62; text-align: center; font-size: 9px; margin: 4px 0 11px; }
+    .admin-auth-note { display: flex; align-items: center; gap: 6px; color: #83919a; font-size: 9px; line-height: 1.7; margin: 13px 0 0; }
+    .admin-auth-note .icon { width: 14px; height: 14px; color: #2d9078; flex: 0 0 auto; }
     .security-modal { width: min(100%, 610px); }
     .security-modal-body { padding: 19px 24px 24px; }
     .security-modal-intro { display: flex; align-items: center; gap: 12px; padding: 13px; border: 1px solid #dce4f5; border-radius: 14px; background: #f5f7ff; color: #4b5b98; margin-bottom: 15px; }
@@ -1031,6 +1046,7 @@ HTML = r'''<!doctype html>
           </div>
           <div class="admin-heading-actions">
             <span class="admin-live"><span class="admin-live-dot"></span> مراقبة مباشرة</span>
+            <button class="ghost-button" type="button" data-action="admin-login"><span class="icon" data-icon="lock"></span> دخول المدير</button>
             <button class="ghost-button" type="button" data-action="export"><span class="icon" data-icon="download"></span> تصدير التقرير</button>
             <button class="primary-button" type="button" data-action="security"><span class="icon" data-icon="shield"></span> مركز الحماية</button>
           </div>
@@ -1151,6 +1167,14 @@ HTML = r'''<!doctype html>
   </div>
 
   <!-- ADMIN_UI_START -->
+  <!-- Admin IAM + MFA login -->
+  <div class="overlay" id="adminAuthModal" role="dialog" aria-modal="true" aria-labelledby="adminAuthTitle">
+    <div class="modal-card admin-auth-modal">
+      <div class="modal-head"><div><p class="modal-kicker">IAM · MFA · RBAC</p><h2 id="adminAuthTitle">دخول المدير العام</h2></div><button class="close-button" type="button" data-close="adminAuthModal" aria-label="إغلاق"><span class="icon" data-icon="x"></span></button></div>
+      <div class="modal-body"><div class="admin-auth-badge"><span class="icon" data-icon="shield"></span></div><p class="admin-auth-copy">هذه منطقة محمية. استخدم حساباً إدارياً مفعّلاً مع كلمة مرور ورمز تطبيق المصادقة.</p><div class="admin-auth-field"><span class="icon" data-icon="user"></span><input id="adminUsername" autocomplete="username" placeholder="اسم المستخدم الإداري" aria-label="اسم المستخدم الإداري" /></div><div class="admin-auth-field"><span class="icon" data-icon="lock"></span><input id="adminPassword" type="password" autocomplete="current-password" placeholder="كلمة المرور" aria-label="كلمة المرور" /></div><div class="admin-auth-field"><span class="icon" data-icon="shield"></span><input id="adminMfaCode" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="رمز MFA من ٦ أرقام" aria-label="رمز MFA" /></div><p class="admin-auth-error" id="adminAuthError" hidden>تعذر تسجيل الدخول. تحقّق من البيانات ورمز المصادقة.</p><button class="primary-button full-button" type="button" id="adminLoginButton">تسجيل دخول آمن <span class="icon" data-icon="arrow-left"></span></button><p class="admin-auth-note"><span class="icon" data-icon="lock"></span> الجلسة HttpOnly، والصلاحيات تُفحص على الخادم لا على الواجهة.</p></div>
+    </div>
+  </div>
+
   <!-- Security operations modal -->
   <div class="overlay" id="securityModal" role="dialog" aria-modal="true" aria-labelledby="securityModalTitle">
     <div class="modal-card security-modal">
@@ -1215,6 +1239,7 @@ HTML = r'''<!doctype html>
     let currentService = 'صيانة منزلية';
     let introStep = 0;
     let toastTimer;
+    let adminCsrfToken = '';
 
     function showToast(message) {
       $('#toastText').textContent = message;
@@ -1344,6 +1369,33 @@ HTML = r'''<!doctype html>
     $('#introNext').addEventListener('click', () => { if (introStep < introSlides.length - 1) { introStep++; renderIntro(); } else { closeOverlay('introModal'); openBooking('تنظيف وتعقيم'); } });
 
     function openSecurityCenter() { openOverlay('securityModal'); }
+    function openAdminAuth() { openOverlay('adminAuthModal'); setTimeout(() => $('#adminUsername').focus(), 120); }
+    async function loginAdmin() {
+      const error = $('#adminAuthError');
+      error.hidden = true;
+      const payload = {
+        username: $('#adminUsername').value.trim(),
+        password: $('#adminPassword').value,
+        mfa_code: $('#adminMfaCode').value.trim()
+      };
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'same-origin',
+          body: JSON.stringify(payload)
+        });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'login_failed');
+        adminCsrfToken = result.csrf_token || '';
+        closeOverlay('adminAuthModal');
+        switchView('admin');
+        showToast('تم تسجيل الدخول الإداري مع MFA');
+      } catch (errorValue) {
+        error.hidden = false;
+        $('#adminMfaCode').value = '';
+      }
+    }
     function exportAdminReport() {
       const rows = [
         ['الطلب', 'الخدمة', 'المنطقة', 'القيمة', 'الحالة'],
@@ -1380,6 +1432,7 @@ HTML = r'''<!doctype html>
       if (action === 'payment') showToast('ميزة إضافة طريقة دفع قادمة قريباً');
       if (action === 'filter') showToast('خيارات التصفية ستظهر هنا');
       if (action === 'security') openSecurityCenter();
+      if (action === 'admin-login') openAdminAuth();
       if (action === 'export') exportAdminReport();
       if (action === 'audit') showToast('سجل التدقيق محفوظ مع كل عملية حساسة');
       if (action === 'approve') removeApprovalRow(button, 'تم اعتماد مزود الخدمة بعد مراجعة المستندات');
@@ -1399,6 +1452,8 @@ HTML = r'''<!doctype html>
       const selected = filter.dataset.opsFilter;
       $$('.operations-table tbody tr').forEach(row => { row.hidden = selected === 'pending' ? !row.innerText.includes('بانتظار') : selected === 'active' ? !row.innerText.includes('التنفيذ') && !row.innerText.includes('التعيين') && !row.innerText.includes('وصل') : false; });
     }));
+    const adminLoginButton = $('#adminLoginButton');
+    if (adminLoginButton) adminLoginButton.addEventListener('click', loginAdmin);
     const reviewSessionsButton = $('#reviewSessions');
     if (reviewSessionsButton) reviewSessionsButton.addEventListener('click', () => { closeOverlay('securityModal'); showToast('تم فتح مراجعة الجلسات الإدارية الآمنة'); });
     const rotateKeysButton = $('#rotateKeys');
@@ -1438,7 +1493,7 @@ STATIC_ASSETS = {
 }
 
 
-APP_VERSION = '0.4.0'
+APP_VERSION = '0.5.0'
 MAX_PATH_LENGTH = 2048
 RATE_LIMIT_WINDOW = 60
 RATE_LIMIT_MAX_REQUESTS = 180
@@ -1446,6 +1501,8 @@ ADMIN_UI_START = '<!-- ADMIN_UI_START -->'
 ADMIN_UI_END = '<!-- ADMIN_UI_END -->'
 _rate_buckets = defaultdict(deque)
 _rate_lock = threading.Lock()
+API_BODY_LIMIT = 16 * 1024
+IAM = IAMService()
 
 
 def remove_marked_blocks(document, start_marker, end_marker):
@@ -1463,7 +1520,7 @@ class AppHandler(BaseHTTPRequestHandler):
     """Small, dependency-free static app server with secure-by-default response handling.
 
     Production traffic should still sit behind a managed TLS terminator, WAF and identity
-    provider. This handler intentionally exposes no state-changing HTTP API.
+    provider. Only the explicitly scoped authentication endpoints below can change state.
     """
 
     server_version = 'Ezwatek'
@@ -1493,7 +1550,9 @@ class AppHandler(BaseHTTPRequestHandler):
 
     def _request_path(self):
         raw_path = self.path or ''
-        if len(raw_path) > MAX_PATH_LENGTH or any(ord(char) < 32 for char in raw_path):
+        lowered_path = raw_path.lower()
+        suspicious_tokens = ('%00', '%2e%2e', '..%2f', '../', '<script', '${', '\\x00')
+        if len(raw_path) > MAX_PATH_LENGTH or any(ord(char) < 32 for char in raw_path) or any(token in lowered_path for token in suspicious_tokens):
             return None
         try:
             parsed = urlsplit(raw_path)
@@ -1539,7 +1598,11 @@ class AppHandler(BaseHTTPRequestHandler):
         self.send_header('Content-Type', content_type)
         self.send_header('Content-Length', str(len(body)))
         for key, value in headers.items():
-            self.send_header(key, value)
+            if key.lower() == 'set-cookie' and isinstance(value, (tuple, list)):
+                for cookie in value:
+                    self.send_header(key, cookie)
+            else:
+                self.send_header(key, value)
         self.end_headers()
         if include_body:
             self.wfile.write(body)
@@ -1553,13 +1616,144 @@ class AppHandler(BaseHTTPRequestHandler):
         production = os.environ.get('APP_ENV', 'development').lower() == 'production'
         return not production or os.environ.get('ADMIN_UI_ENABLED', '0') == '1'
 
-    def _serve(self, include_body=True):
+    def _is_secure_request(self):
+        production = os.environ.get('APP_ENV', 'development').lower() == 'production'
+        forwarded_proto = self.headers.get('X-Forwarded-Proto', '').lower()
+        return production or forwarded_proto == 'https'
+
+    def _read_json_body(self):
+        content_type = self.headers.get('Content-Type', '').split(';', 1)[0].strip().lower()
+        if content_type != 'application/json':
+            self._send_json({'error': 'unsupported_media_type'}, 415, True)
+            return None
+        try:
+            content_length = int(self.headers.get('Content-Length', '-1'))
+        except ValueError:
+            content_length = -1
+        if content_length < 0:
+            self._send_json({'error': 'length_required'}, 411, True)
+            return None
+        if content_length > API_BODY_LIMIT:
+            self._send_json({'error': 'payload_too_large'}, 413, True)
+            return None
+        raw_body = self.rfile.read(content_length)
+        if len(raw_body) != content_length:
+            self._send_json({'error': 'bad_request'}, 400, True)
+            return None
+        try:
+            body = json.loads(raw_body.decode('utf-8'))
+        except (UnicodeDecodeError, json.JSONDecodeError):
+            self._send_json({'error': 'invalid_json'}, 400, True)
+            return None
+        if not isinstance(body, dict):
+            self._send_json({'error': 'invalid_json'}, 400, True)
+            return None
+        return body
+
+    def _current_session(self):
+        return IAM.session_from_cookie(self.headers.get('Cookie'))
+
+    def _send_unauthorized(self, include_body=True):
+        self._send_json({'error': 'authentication_required'}, 401, include_body, {'Cache-Control': 'no-store'})
+
+    def _send_forbidden(self, include_body=True):
+        self._send_json({'error': 'insufficient_permissions'}, 403, include_body, {'Cache-Control': 'no-store'})
+
+    def _serve_api(self, path, method, include_body=True):
+        if path == '/api/auth/status' and method in {'GET', 'HEAD'}:
+            session = self._current_session()
+            payload = {'authenticated': bool(session)}
+            if session:
+                payload.update({
+                    'user': session.identity.username,
+                    'roles': list(session.identity.roles),
+                    'permissions': sorted(session.identity.permissions),
+                    'csrf_token': session.csrf_token,
+                    'expires_at': int(session.expires_at),
+                })
+            self._send_json(payload, 200, include_body, {'Vary': 'Cookie', 'Cache-Control': 'no-store'})
+            return
+
+        if path == '/api/auth/login' and method == 'POST':
+            body = self._read_json_body()
+            if body is None:
+                return
+            username = body.get('username', '')
+            password = body.get('password', '')
+            mfa_code = body.get('mfa_code', '')
+            if not isinstance(username, str) or not isinstance(password, str) or not isinstance(mfa_code, str):
+                self._send_json({'error': 'invalid_credentials'}, 401, True, {'Cache-Control': 'no-store'})
+                return
+            session, reason = IAM.login(username, password, mfa_code, self._client_ip())
+            if reason == 'rate_limited':
+                self._send_json({'error': 'too_many_login_attempts'}, 429, True, {'Retry-After': '300', 'Cache-Control': 'no-store'})
+                return
+            if not session:
+                self._send_json({'error': 'invalid_credentials'}, 401, True, {'Cache-Control': 'no-store'})
+                return
+            payload = {
+                'authenticated': True,
+                'user': session.identity.username,
+                'roles': list(session.identity.roles),
+                'permissions': sorted(session.identity.permissions),
+                'csrf_token': session.csrf_token,
+                'expires_at': int(session.expires_at),
+            }
+            self._send_json(payload, 200, include_body, {'Set-Cookie': IAM.session_cookie(session, self._is_secure_request()), 'Cache-Control': 'no-store'})
+            return
+
+        if path == '/api/auth/logout' and method == 'POST':
+            session = self._current_session()
+            if not session:
+                self._send_unauthorized()
+                return
+            if not IAM.csrf_valid(session, self.headers.get('X-CSRF-Token')):
+                self._send_forbidden()
+                return
+            IAM.sessions.revoke(session.token)
+            headers = {'Set-Cookie': IAM.clear_cookies(self._is_secure_request()), 'Cache-Control': 'no-store'}
+            self._send_json({'authenticated': False}, 200, include_body, headers)
+            return
+
+        if path in {'/api/admin/overview', '/api/admin/security'} and method in {'GET', 'HEAD'}:
+            session = self._current_session()
+            required_permission = 'security:read' if path.endswith('/security') else 'admin:read'
+            if not session:
+                self._send_unauthorized(include_body)
+                return
+            if not can(session.identity, required_permission):
+                self._send_forbidden(include_body)
+                return
+            if path.endswith('/security'):
+                payload = {
+                    'risk_score': 96,
+                    'mfa_coverage': 98.4,
+                    'blocked_attempts': 27,
+                    'critical_vulnerabilities': 0,
+                    'backup_age_minutes': 12,
+                }
+            else:
+                payload = {
+                    'orders_today': 1284,
+                    'service_volume_jod': 24680,
+                    'active_providers': 318,
+                    'customer_satisfaction': 4.9,
+                }
+            self._send_json(payload, 200, include_body, {'Cache-Control': 'no-store', 'Vary': 'Cookie'})
+            return
+
+        self._send_json({'error': 'not_found'}, 404, include_body)
+
+    def _serve(self, include_body=True, method='GET'):
         if not self._rate_allowed():
             self._send_json({'error': 'too_many_requests', 'message': 'تم تجاوز عدد الطلبات المسموح مؤقتاً.'}, 429, include_body, {'Retry-After': str(RATE_LIMIT_WINDOW)})
             return
         path = self._request_path()
         if path is None:
             self._send_json({'error': 'bad_request', 'message': 'طلب غير صالح.'}, 400, include_body)
+            return
+        if path.startswith('/api/'):
+            self._serve_api(path, method, include_body)
             return
         if path == '/health':
             self._send_json({'status': 'ok', 'app': 'ezwatek', 'version': APP_VERSION, 'security': 'headers-enabled'}, 200, include_body)
@@ -1589,10 +1783,10 @@ class AppHandler(BaseHTTPRequestHandler):
         self._send_payload(rendered.encode('utf-8'), 'text/html; charset=utf-8', 200, include_body, nonce=nonce)
 
     def do_GET(self):
-        self._serve(include_body=True)
+        self._serve(include_body=True, method='GET')
 
     def do_HEAD(self):
-        self._serve(include_body=False)
+        self._serve(include_body=False, method='HEAD')
 
     def _reject_state_change(self):
         if not self._rate_allowed():
@@ -1601,6 +1795,10 @@ class AppHandler(BaseHTTPRequestHandler):
         self._send_json({'error': 'method_not_allowed'}, 405, True, {'Allow': 'GET, HEAD, OPTIONS'})
 
     def do_POST(self):
+        path = self._request_path()
+        if path in {'/api/auth/login', '/api/auth/logout'}:
+            self._serve(include_body=True, method='POST')
+            return
         self._reject_state_change()
 
     def do_PUT(self):
@@ -1610,7 +1808,7 @@ class AppHandler(BaseHTTPRequestHandler):
         self._reject_state_change()
 
     def do_OPTIONS(self):
-        self._send_payload(b'', 'text/plain; charset=utf-8', 204, False, {'Allow': 'GET, HEAD, OPTIONS'})
+        self._send_payload(b'', 'text/plain; charset=utf-8', 204, False, {'Allow': 'GET, HEAD, POST, OPTIONS'})
 
     def log_message(self, format, *args):
         # Keep logs useful without echoing query strings or user-controlled values.

@@ -1,6 +1,6 @@
 # عزوتك | خدماتك أقرب
 
-إصدار النموذج الحالي: `0.4.0`
+إصدار النموذج الحالي: `0.5.0`
 
 نموذج تفاعلي RTL لمنصة خدمات منزلية أردنية، مع واجهة العميل ولوحة المدير العام ومركز حماية تشغيلي.
 
@@ -23,7 +23,13 @@ python app.py
 APP_ENV=production ENABLE_HSTS=1 python app.py
 ```
 
-لوحة المدير مخفية افتراضياً في الإنتاج لتقليل التعرّض. بعد وضعها خلف IAM وMFA وRBAC فعليين يمكن تفعيل العرض عبر:
+لوحة المدير مخفية افتراضياً في الإنتاج لتقليل التعرّض. أنشئ هوية إدارية وMFA أولاً:
+
+```bash
+python scripts/bootstrap_iam.py
+```
+
+بعد وضعها خلف IAM وMFA وRBAC فعليين يمكن تفعيل العرض عبر:
 
 ```bash
 APP_ENV=production ENABLE_HSTS=1 ADMIN_UI_ENABLED=1 python app.py
@@ -42,7 +48,11 @@ python -m py_compile app.py
 - `manifest.webmanifest`: تعريف قابلية التثبيت كتطبيق PWA.
 - `favicon.svg`: هوية عزوتك المصغّرة.
 - `SECURITY.md`: متطلبات الحماية قبل ربط بيانات حقيقية أو مدفوعات.
-- `test_app.py`: اختبارات الرؤوس الأمنية، CSP nonce، المسارات، والأصول العامة.
+- `security.py`: IAM وMFA وRBAC والجلسات وCSRF primitives بدون تبعيات خارجية.
+- `scripts/bootstrap_iam.py`: إنشاء hash كلمة المرور وTOTP secret دون حفظ الأسرار في المستودع.
+- `deploy/`: قوالب Reverse Proxy وTLS وWAF edge لـ Nginx وCaddy، ووحدة systemd غير root.
+- `.env.example`: أسماء إعدادات IAM بدون أسرار حقيقية.
+- `test_app.py` و`test_security.py`: اختبارات الرؤوس، CSP nonce، IAM، MFA، الجلسات والمسارات.
 - `BRANDING.md`: خيارات اسم المنصة ومعايير الاختيار داخل السوق الأردني.
 
 > لوحة الإدارة الحالية نموذج UI تفاعلي وليست نظام IAM. يجب ربطها بمصادقة حقيقية وMFA وRBAC وWAF قبل الإنتاج.

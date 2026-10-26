@@ -17,6 +17,18 @@
 - قائمة أصول allowlist فقط للـ manifest وfavicon وrobots، مع رفض المسارات العشوائية.
 - اختبارات آلية لـ CSP nonce، الرؤوس، HTTP methods، المسارات غير المعروفة، وفحص الجاهزية.
 - نقطتا تشغيل منفصلتان للـ liveness (`/health`) والـ readiness (`/ready`) لتسهيل المراقبة دون كشف بيانات تشغيلية.
+- أساس IAM محلي اختياري: scrypt لكلمات المرور، TOTP متوافق مع RFC 6238، جلسات HttpOnly، CSRF token، وRBAC بالـ permissions.
+- قوالب Reverse Proxy في `deploy/` لـ Nginx وCaddy، مع TLS حديث، rate limiting، وحدود حجم الطلب.
+
+## IAM الحالي
+
+- `POST /api/auth/login` لا يعمل دون `IAM_ADMIN_USERNAME` و`IAM_ADMIN_PASSWORD_HASH` و`IAM_MFA_TOTP_SECRET`.
+- كلمة المرور تُخزن كـ scrypt hash مع salt؛ لا يتم تخزين كلمة المرور نفسها.
+- رمز MFA هو TOTP من ٦ أرقام مع نافذة انحراف ٣٠ ثانية.
+- الأدوار الحالية: `owner`, `ops_manager`, `security_auditor`, `support_lead`.
+- صلاحيات الإدارة تُفحص على الخادم عبر RBAC؛ الواجهة وحدها ليست حاجز أمان.
+- logout يتطلب CSRF token، والجلسة Cookie `HttpOnly; SameSite=Strict` وتصبح `__Host-` و`Secure` في الإنتاج.
+- الجلسات حالياً داخل ذاكرة العملية، لذلك يجب استبدالها بمخزن مشترك أو IdP عند تشغيل أكثر من نسخة.
 
 ## قبل الإطلاق الفعلي
 

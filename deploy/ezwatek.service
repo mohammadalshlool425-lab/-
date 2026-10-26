@@ -1,0 +1,28 @@
+[Unit]
+Description=Ezwatek secure application server
+After=network.target
+
+[Service]
+Type=simple
+User=ezwatek
+Group=ezwatek
+WorkingDirectory=/opt/ezwatek
+EnvironmentFile=/etc/ezwatek/ezwatek.env
+ExecStart=/usr/bin/python3 /opt/ezwatek/app.py
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_INET AF_INET6
+LockPersonality=true
+MemoryDenyWriteExecute=true
+UMask=027
+
+[Install]
+WantedBy=multi-user.target

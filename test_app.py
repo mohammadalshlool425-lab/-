@@ -40,7 +40,7 @@ class AppSecurityTests(unittest.TestCase):
     def test_security_headers_are_present(self):
         response = self.fetch('/health')
         self.assertEqual(response.status, 200)
-        self.assertIn('"version":"0.4.0"', response.read().decode('utf-8'))
+        self.assertIn('"version":"0.5.0"', response.read().decode('utf-8'))
         self.assertEqual(response.headers['X-Content-Type-Options'], 'nosniff')
         self.assertEqual(response.headers['Referrer-Policy'], 'no-referrer')
         self.assertEqual(response.headers['Cache-Control'], 'no-store, max-age=0')
@@ -50,6 +50,23 @@ class AppSecurityTests(unittest.TestCase):
         response = self.fetch('/ready')
         self.assertEqual(response.status, 200)
         self.assertIn('"status":"ready"', response.read().decode('utf-8'))
+
+    def test_auth_status_does_not_create_a_session(self):
+        response = self.fetch('/api/auth/status')
+        self.assertEqual(response.status, 200)
+        self.assertEqual(response.read().decode('utf-8'), '{"authenticated":false}')
+
+    def test_admin_api_requires_a_session(self):
+        with self.assertRaises(HTTPError) as caught:
+            self.fetch('/api/admin/overview')
+        self.assertEqual(caught.exception.code, 401)
+
+    def test_login_requires_json_and_configured_identity(self):
+        request = Request(self.base_url + '/api/auth/login', data=b'{}', method='POST', headers={'Content-Type': 'application/json'})
+        with self.assertRaises(HTTPError) as caught:
+            urlopen(request, timeout=3)
+        self.assertEqual(caught.exception.code, 401)
+        self.assertIn('invalid_credentials', caught.exception.read().decode('utf-8'))
 
     def test_public_assets_are_allowlisted(self):
         manifest = self.fetch('/manifest.webmanifest').read().decode('utf-8')
