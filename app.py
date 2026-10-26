@@ -1048,7 +1048,7 @@ HTML = r'''<!doctype html>
             <p>صورة موحّدة للطلبات، الأداء، والمخاطر — بقرار أسرع وأوضح.</p>
           </div>
           <div class="admin-heading-actions">
-            <span class="admin-live"><span class="admin-live-dot"></span> مراقبة مباشرة</span>
+            <span class="admin-live"><span class="admin-live-dot"></span> بيانات المعاينة</span>
             <button class="ghost-button" type="button" data-action="admin-login"><span class="icon" data-icon="lock"></span> دخول المدير</button>
             <button class="ghost-button" type="button" data-action="export"><span class="icon" data-icon="download"></span> تصدير التقرير</button>
             <button class="primary-button" type="button" data-action="security"><span class="icon" data-icon="shield"></span> مركز الحماية</button>
@@ -1084,7 +1084,7 @@ HTML = r'''<!doctype html>
 
         <div class="admin-lower-grid">
           <article class="admin-panel">
-            <div class="admin-panel-head"><div><h3>العمليات الحية</h3><p>آخر تحديث: قبل ٣٠ ثانية</p></div><div class="ops-filter"><button class="active" type="button" data-ops-filter="all">الكل</button><button type="button" data-ops-filter="active">نشط</button><button type="button" data-ops-filter="pending">معلّق</button></div></div>
+            <div class="admin-panel-head"><div><h3>عرض العمليات</h3><p>بيانات المعاينة — لا تمثل طلبات حقيقية</p></div><div class="ops-filter"><button class="active" type="button" data-ops-filter="all">الكل</button><button type="button" data-ops-filter="active">نشط</button><button type="button" data-ops-filter="pending">معلّق</button></div></div>
             <div class="operations-table-wrap"><table class="operations-table"><thead><tr><th>الطلب</th><th>الخدمة</th><th>المنطقة</th><th>القيمة</th><th>الحالة</th><th>الوقت</th></tr></thead><tbody><tr><td>#SN-2841</td><td><span class="ops-service"><span class="ops-service-icon"><span class="icon" data-icon="wrench"></span></span>صيانة تكييف</span></td><td>عمّان · السابع</td><td>١٨ د.أ</td><td><span class="ops-status"><i class="status-dot"></i>قيد التنفيذ</span></td><td>الآن</td></tr><tr><td>#SN-2840</td><td><span class="ops-service"><span class="ops-service-icon"><span class="icon" data-icon="sparkles"></span></span>تنظيف منزل</span></td><td>إربد · الحي الشرقي</td><td>٢٢ د.أ</td><td><span class="ops-status"><i class="status-dot"></i>تم التعيين</span></td><td>منذ ٢ د</td></tr><tr><td>#SN-2839</td><td><span class="ops-service"><span class="ops-service-icon"><span class="icon" data-icon="truck"></span></span>نقل أثاث</span></td><td>الزرقاء · الجديدة</td><td>٤٥ د.أ</td><td><span class="ops-status pending"><i class="status-dot"></i>بانتظار مزوّد</span></td><td>منذ ٤ د</td></tr><tr><td>#SN-2838</td><td><span class="ops-service"><span class="ops-service-icon"><span class="icon" data-icon="bolt"></span></span>كهرباء طارئة</span></td><td>عمّان · خلدا</td><td>١٤ د.أ</td><td><span class="ops-status"><i class="status-dot"></i>وصل الفني</span></td><td>منذ ٦ د</td></tr></tbody></table></div>
           </article>
           <article class="admin-panel queue-panel">
@@ -1145,7 +1145,7 @@ HTML = r'''<!doctype html>
 
   <!-- Success modal -->
   <div class="overlay" id="successModal" role="dialog" aria-modal="true" aria-labelledby="successTitle">
-    <div class="modal-card success-modal"><div class="success-mark"><span class="icon" data-icon="check"></span></div><h2 id="successTitle">تم تأكيد طلبك بنجاح!</h2><p>يقوم فريقنا الآن بالتنسيق مع أفضل مزود خدمة قريب منك. يمكنك تتبع حالة الطلب من صفحة «طلباتي».</p><div class="success-order-id">رقم الطلب <strong id="successOrderId">#SN-2857</strong></div><div class="success-actions"><button class="primary-button" type="button" id="trackSuccess">تتبع الطلب</button><button class="ghost-button" type="button" id="homeSuccess">الرئيسية</button></div></div>
+    <div class="modal-card success-modal"><div class="success-mark"><span class="icon" data-icon="check"></span></div><h2 id="successTitle">المعاينة جاهزة</h2><p>هذه النسخة تستعرض رحلة الحجز فقط. لا يتم إنشاء طلب أو حجز مزود أو عملية دفع قبل ربط الخدمات الخارجية.</p><div class="success-order-id">الحالة <strong id="successOrderId">معاينة فقط</strong></div><div class="success-actions"><button class="primary-button" type="button" id="trackSuccess">الخدمات</button><button class="ghost-button" type="button" id="homeSuccess">الرئيسية</button></div></div>
   </div>
 
   <!-- Intro modal -->
@@ -1326,13 +1326,7 @@ HTML = r'''<!doctype html>
     $('#backToBooking').addEventListener('click', () => { $('#confirmView').classList.remove('show'); $('#bookingFormView').classList.remove('hide'); });
     $('#confirmBooking').addEventListener('click', () => {
       closeOverlay('bookingModal');
-      $('#successOrderId').textContent = '#SN-' + (2850 + Math.floor(Math.random() * 50));
-      openOverlay('successModal');
-      $('#ordersBadge').textContent = '3';
-      $('#orderStatus').textContent = 'تم الإرسال';
-      $('#orderStatus').classList.add('pending');
-      $('#orderTitle').textContent = currentService;
-      $('#orderMeta').textContent = 'تم الإرسال للتنسيق الآن';
+      showToast('هذه نسخة معاينة — لم يتم إنشاء حجز أو عملية دفع فعلية');
     });
     $('#trackSuccess').addEventListener('click', () => { closeOverlay('successModal'); switchView('orders'); showToast('طلبك جاهز للمتابعة من هنا'); });
     $('#homeSuccess').addEventListener('click', () => { closeOverlay('successModal'); switchView('home'); });
@@ -1486,7 +1480,7 @@ HTML = r'''<!doctype html>
       $('#phoneField').classList.toggle('invalid', !validJordanPhone);
       if (!validJordanPhone) { $('#phoneInput').focus(); return; }
       closeOverlay('authModal');
-      showToast('أهلاً فيك مع عزوتك — تم تجهيز حسابك');
+      showToast('هذه معاينة — لم يتم إنشاء حساب فعلي أو إرسال رمز تحقق بعد');
     });
     $('#phoneInput').addEventListener('input', () => { $('#phoneError').hidden = true; $('#phoneField').classList.remove('invalid'); });
     $('#guestExplore').addEventListener('click', () => { closeOverlay('authModal'); openIntro(); });
