@@ -343,6 +343,42 @@ class RedisLoginThrottle:
         self.client.delete(self._failure_key(key), self._lock_key(key))
 
 
+class RedisWindowLimiter:
+    """Distributed fixed-window request limiter for all HTTP routes."""
+
+    def __init__(self, url: str | None = None, limit: int = 180, window_seconds: int = 60, prefix: str = 'ezwatek:http:', client=None):
+        self.limit = limit
+        self.window_seconds = window_seconds
+        self.prefix = prefix
+        if client is not None:
+            self.client = client
+            return
+        if not url:
+            raise RuntimeError('REDIS_URL is required for distributed request limiting')
+        try:
+            import redis
+        except ImportError as error:
+            raise RuntimeError('Install requirements-production.txt for Redis request limiting') from error
+        kwargs = {'decode_responses': True, 'socket_timeout': 3, 'health_check_interval': 30}
+        if url.startswith('rediss://'):
+            kwargs['ssl_cert_reqs'] = 'required'
+        self.client = redis.Redis.from_url(url, **kwargs)
+        self.client.ping()
+
+    def allowed(self, key: str, now: float | None = None) -> bool:
+        timestamp = time.time() if now is None else now
+        window = int(timestamp // self.window_seconds)
+        digest = hashlib.sha256(str(key).encode('utf-8')).hexdigest()
+        redis_key = f'{self.prefix}{window}:{digest}'
+        try:
+            count = int(self.client.incr(redis_key))
+            if count == 1:
+                self.client.expire(redis_key, self.window_seconds + 1)
+            return count <= self.limit
+        except Exception:
+            return False
+
+
 class SessionStore:
     """Opaque, expiring sessions with a separate CSRF token.
 
