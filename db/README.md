@@ -20,7 +20,7 @@ psql "$DATABASE_URL" --set ON_ERROR_STOP=1 -f db/migrations/0001_initial.sql
 
 ## Redis والجلسات
 
-عند تشغيل أكثر من نسخة من التطبيق ثبّت `requirements-production.txt` واضبط `SESSION_STORE=redis` و`RATE_LIMIT_STORE=redis` و`REDIS_URL=rediss://...`. يجب أن يكون Redis خاصاً بالشبكة الداخلية، مع ACL لمستخدم التطبيق وTLS وحدود ذاكرة وسياسة انتهاء مفاتيح.
+عند تشغيل أكثر من نسخة من التطبيق ثبّت `requirements-production.txt` واضبط `SESSION_STORE=redis` و`RATE_LIMIT_STORE=redis` و`REDIS_URL=rediss://...`. يجب أن يكون Redis خاصاً بالشبكة الداخلية، مع ACL لمستخدم التطبيق وTLS وحدود ذاكرة وسياسة انتهاء مفاتيح. طوابير Redis Streams تستخدم consumer group وdead-letter stream، ويجب تشغيل worker منفصل بحساب خدمة محدود.
 
 ## قبل تفعيل الإنتاج
 

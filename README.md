@@ -1,6 +1,6 @@
 # عزوتك | خدماتك أقرب
 
-إصدار النموذج الحالي: `0.7.1`
+إصدار النموذج الحالي: `0.8.0`
 
 نموذج تفاعلي RTL لمنصة خدمات منزلية أردنية، مع واجهة العميل ولوحة المدير العام ومركز حماية تشغيلي.
 
@@ -50,6 +50,7 @@ python -m py_compile app.py
 - `SECURITY.md`: متطلبات الحماية قبل ربط بيانات حقيقية أو مدفوعات.
 - `security.py`: IAM وMFA وRBAC والجلسات وCSRF primitives، مع Redis sessions وlogin throttling اختياريين للإنتاج.
 - `requirements-production.txt`: اعتماد Redis مثبت للإنتاج فقط؛ المعاينة تبقى بدون تبعيات.
+- `jobs.py` و`worker.py`: طوابير Redis Streams مع consumer groups وretry وdead-letter، وعامل منفصل للمهام الخلفية.
 - `scripts/bootstrap_iam.py`: إنشاء hash كلمة المرور وTOTP secret دون حفظ الأسرار في المستودع.
 - `deploy/`: قوالب Reverse Proxy وTLS وWAF edge لـ Nginx وCaddy، ووحدة systemd غير root.
 - `.env.example`: أسماء إعدادات IAM بدون أسرار حقيقية.

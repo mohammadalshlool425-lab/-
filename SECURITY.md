@@ -33,6 +33,7 @@
 - logout يتطلب CSRF token، والجلسة Cookie `HttpOnly; SameSite=Strict` وتصبح `__Host-` و`Secure` في الإنتاج.
 - الجلسات داخل الذاكرة افتراضياً للمعاينة، ويتوفر RedisSessionStore عبر `SESSION_STORE=redis` للنسخ المتعددة؛ استخدم `rediss://` وشهادة موثوقة في الإنتاج.
 - يتوفر RedisLoginThrottle عبر `RATE_LIMIT_STORE=redis`، ويستخدم مفاتيح مجزأة وعدادات ذرية وTTL للقفل؛ لا يعتمد على عدادات ذاكرة نسخة واحدة في الإنتاج.
+- طوابير المهام تستخدم Redis Streams وconsumer groups وacknowledgement وdead-letter؛ لا تُحفظ أسرار مزودي الدفع أو الإشعارات داخل payloads.
 
 ## قبل الإطلاق الفعلي
 
