@@ -38,6 +38,10 @@ class AppSecurityTests(unittest.TestCase):
         self.assertIn('manifest-src \'self\'', csp)
         self.assertIn('id="admin-view"', body)
 
+    def test_server_shutdown_properties_are_safe(self):
+        self.assertTrue(app.EzwatekHTTPServer.allow_reuse_address)
+        self.assertTrue(app.EzwatekHTTPServer.daemon_threads)
+
     def test_security_headers_are_present(self):
         response = self.fetch('/health')
         self.assertEqual(response.status, 200)

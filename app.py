@@ -2548,6 +2548,13 @@ class AppHandler(BaseHTTPRequestHandler):
         print(f"{self._request_id()} {self._client_ip()} {status} {safe_path}")
 
 
+class EzwatekHTTPServer(ThreadingHTTPServer):
+    """HTTP server with safe reuse and daemon request threads for clean shutdown."""
+
+    allow_reuse_address = True
+    daemon_threads = True
+
+
 if __name__ == '__main__':
     startup_issues = validate_production_env()
     if startup_issues:
@@ -2563,7 +2570,7 @@ if __name__ == '__main__':
         raise SystemExit(78)
     port = int(os.environ.get('PORT', '8000'))
     bind_host = os.environ.get('BIND_HOST', '127.0.0.1')
-    server = ThreadingHTTPServer((bind_host, port), AppHandler)
+    server = EzwatekHTTPServer((bind_host, port), AppHandler)
     print(f'عزوتك is running on http://{bind_host}:{port}')
     try:
         server.serve_forever()
