@@ -28,6 +28,13 @@ DISCOVERY_TTL_SECONDS = 300
 JWKS_TTL_SECONDS = 300
 STATE_TTL_SECONDS = 300
 MAX_RESPONSE_BYTES = 512 * 1024
+_REDIS_GETDEL_SCRIPT = """
+local value = redis.call('GET', KEYS[1])
+if value then
+  redis.call('DEL', KEYS[1])
+end
+return value
+"""
 
 
 class OIDCError(RuntimeError):
@@ -109,7 +116,15 @@ class RedisStateStore:
 
     def pop(self, state: str) -> dict | None:
         key = self.prefix + state
-        value = self.client.getdel(key) if hasattr(self.client, "getdel") else self._get_delete(key)
+        getdel = getattr(self.client, "getdel", None)
+        if callable(getdel):
+            value = getdel(key)
+        else:
+            evaluator = getattr(self.client, "eval", None)
+            if callable(evaluator):
+                value = evaluator(_REDIS_GETDEL_SCRIPT, 1, key)
+            else:
+                value = self._get_delete(key)
         if not value:
             return None
         try:
@@ -119,6 +134,7 @@ class RedisStateStore:
         return decoded if isinstance(decoded, dict) else None
 
     def _get_delete(self, key: str) -> str | None:
+        """Compatibility fallback for minimal Redis test doubles."""
         value = self.client.get(key)
         self.client.delete(key)
         return value
@@ -167,7 +183,7 @@ def _roles_from_claims(claims: dict, config: OIDCConfig) -> tuple[str, ...]:
     if isinstance(resource_access, dict):
         client_roles = resource_access.get(config.client_id, {})
         if isinstance(client_roles, dict) and isinstance(client_roles.get("roles"), list):
-            groups.update(client_roles["roles"])
+            groups.update(value for value in client_roles["roles"] if isinstance(value, str))
     mapped = []
     for app_role, provider_group in config.role_map:
         if app_role in ROLE_PERMISSIONS and provider_group in groups:
@@ -212,7 +228,7 @@ class OIDCClient:
         else:
             state_store = MemoryStateStore()
         scopes = tuple(item for item in os.environ.get("OIDC_SCOPES", "openid profile email groups").split() if item)
-        required_amr = tuple(item.strip() for item in os.environ.get("OIDC_REQUIRED_AMR", "webauthn,fido2,otp").split(",") if item.strip())
+        required_amr = tuple(item.strip().lower() for item in os.environ.get("OIDC_REQUIRED_AMR", "webauthn,fido2,otp").split(",") if item.strip())
         return cls(
             OIDCConfig(
                 issuer=issuer,
@@ -329,7 +345,9 @@ class OIDCClient:
             )
             claims.validate(leeway=60)
             amr = claims.get("amr", [])
-            if self.config.required_amr and (not isinstance(amr, list) or not any(value in self.config.required_amr for value in amr)):
+            normalized_amr = {value.strip().lower() for value in amr if isinstance(value, str)} if isinstance(amr, list) else set()
+            required_amr = {value.strip().lower() for value in self.config.required_amr if isinstance(value, str)}
+            if required_amr and not normalized_amr.intersection(required_amr):
                 raise OIDCError("OIDC authentication strength is insufficient")
         except OIDCError:
             raise

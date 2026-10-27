@@ -64,6 +64,9 @@ def validate_production_env(env: dict[str, str] | None = None) -> list[str]:
     required_amr = {item.strip().lower() for item in _value(values, "OIDC_REQUIRED_AMR").split(",") if item.strip()}
     if not required_amr or not required_amr.intersection({"webauthn", "fido2"}) or "otp" not in required_amr:
         issues.append("OIDC_REQUIRED_AMR must include a passkey value (webauthn or fido2) and otp")
+    scopes = set(_value(values, "OIDC_SCOPES").split())
+    if scopes and "openid" not in scopes:
+        issues.append("OIDC_SCOPES must include openid when explicitly configured")
     redirect_uri = _value(values, "OIDC_REDIRECT_URI")
     _https_url(redirect_uri, "OIDC_REDIRECT_URI", issues)
     if public_origin and redirect_uri and not redirect_uri.startswith(public_origin.rstrip("/") + "/"):

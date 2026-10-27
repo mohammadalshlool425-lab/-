@@ -63,6 +63,12 @@ class SecurityPrimitiveTests(unittest.TestCase):
         store.revoke(session.token)
         self.assertIsNone(store.get(session.token, now=101))
 
+    def test_redis_sessions_reject_corrupt_or_mismatched_records(self):
+        client = FakeRedis()
+        store = RedisSessionStore(client=client, ttl_seconds=60)
+        client.values[store._key('bad-token')] = '{"token":"different","roles":[]}'
+        self.assertIsNone(store.get('bad-token', now=101))
+
     def test_audit_log_can_stream_to_a_sink(self):
         received = []
         audit = AuditLog(sink=received.append, sink_required=True)

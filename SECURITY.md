@@ -34,8 +34,8 @@
 - صلاحيات الإدارة تُفحص على الخادم عبر RBAC؛ الواجهة وحدها ليست حاجز أمان.
 - logout يتطلب CSRF token، والجلسة Cookie `HttpOnly; SameSite=Strict` وتصبح `__Host-` و`Secure` في الإنتاج.
 - الجلسات داخل الذاكرة افتراضياً للمعاينة، ويتوفر RedisSessionStore عبر `SESSION_STORE=redis` للنسخ المتعددة؛ استخدم `rediss://` وشهادة موثوقة في الإنتاج.
-- يتوفر RedisLoginThrottle وRedisWindowLimiter عبر `RATE_LIMIT_STORE=redis`، ويستخدمان مفاتيح مجزأة وعدادات ذرية وTTL للقفل/النافذة؛ لا يعتمد محدد الطلبات العام أو الدخول على ذاكرة نسخة واحدة في الإنتاج.
-- طوابير المهام تستخدم Redis Streams وconsumer groups وacknowledgement وdead-letter؛ لا تُحفظ أسرار مزودي الدفع أو الإشعارات داخل payloads.
+- يتوفر RedisLoginThrottle وRedisWindowLimiter عبر `RATE_LIMIT_STORE=redis`، ويستخدمان مفاتيح مجزأة وعمليات Lua ذرية وTTL للقفل/النافذة؛ لا يعتمد محدد الطلبات العام أو الدخول على ذاكرة نسخة واحدة في الإنتاج.
+- طوابير المهام تستخدم Redis Streams وconsumer groups وacknowledgement وdead-letter؛ ينشر worker إعادة المحاولة قبل تأكيد الرسالة لتفادي فقدانها، وتتحمل handlers التكرار عبر idempotency الخاص بها. لا تُحفظ أسرار مزودي الدفع أو الإشعارات داخل payloads.
 - `validate_production_config.py` يرفض تشغيل الخدمة في production عند غياب OIDC أو PostgreSQL أو Redis/TLS أو WAF managed، ويشترط `DATA_BACKEND=postgres` ولا يطبع قيم الأسرار.
 - لوحة الإدارة لا تعرض أرقاماً اصطناعية في production؛ قراءات الإدارة ودليل المزودين المتحققين تأتي من PostgreSQL، وتصبح جاهزية الخدمة غير مكتملة عند غياب مخزن البيانات.
 

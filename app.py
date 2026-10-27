@@ -184,8 +184,7 @@ HTML = r'''<!doctype html>
       background: var(--teal);
     }
     .nav-item .icon { width: 19px; height: 19px; flex: 0 0 auto; }
-    .nav-item span:not(.icon):not(.nav-count) { flex: 1; }
-    .nav-count { min-width: 21px; height: 21px; padding: 0 5px; display: grid; place-items: center; border-radius: 7px; font-size: 10px; color: #fff; background: var(--amber); font-weight: 800; }
+    .nav-item span:not(.icon) { flex: 1; }
     .admin-access { color: #5e6d9f; }
     .admin-access:hover { color: #4d5a93; background: #f0f1fb; }
     .admin-access .icon { color: #6c73b1; }
@@ -768,8 +767,7 @@ HTML = r'''<!doctype html>
       .mobile-nav { position: fixed; z-index: 30; display: flex; right: 12px; left: 12px; bottom: max(12px, env(safe-area-inset-bottom)); height: 63px; padding: 7px 9px; border: 1px solid rgba(214,228,222,.9); border-radius: 19px; background: rgba(255,255,255,.94); box-shadow: 0 12px 35px rgba(17,56,58,.14); backdrop-filter: blur(12px); justify-content: space-around; }
       .mobile-nav .nav-item { width: auto; min-width: 54px; padding: 6px 10px; flex-direction: column; gap: 4px; justify-content: center; text-align: center; border-radius: 12px; }
       .mobile-nav .nav-item.active::before { display: none; }
-      .mobile-nav .nav-item span:not(.icon):not(.nav-count) { flex: initial; font-size: 9px; }
-      .mobile-nav .nav-count { position: absolute; top: 3px; left: 8px; min-width: 15px; height: 15px; font-size: 8px; border-radius: 5px; }
+      .mobile-nav .nav-item span:not(.icon) { flex: initial; font-size: 9px; }
       .mobile-nav .nav-item:nth-child(n+7) { display: none; }
       .notification-panel { top: 72px; left: 17px; }
       .hero-card { min-height: 268px; }
@@ -2098,6 +2096,27 @@ class AppHandler(BaseHTTPRequestHandler):
             return None
         return body
 
+    @staticmethod
+    def _runtime_store_ready():
+        """Check shared Redis clients without exposing connection details."""
+        clients = []
+        for component in (
+            getattr(IAM, 'sessions', None),
+            getattr(IAM, 'login_throttle', None),
+            REQUEST_LIMITER,
+            getattr(OIDC, 'state_store', None),
+        ):
+            client = getattr(component, 'client', None)
+            if client is not None and all(client is not existing for existing in clients):
+                clients.append(client)
+        for client in clients:
+            try:
+                if client.ping() is False:
+                    return False
+            except Exception:
+                return False
+        return True
+
     def _current_session(self):
         return IAM.session_from_cookie(self.headers.get('Cookie'))
 
@@ -2372,9 +2391,19 @@ class AppHandler(BaseHTTPRequestHandler):
             assets_ready = all(file_path.is_file() for file_path, _ in STATIC_ASSETS.values())
             production = os.environ.get('APP_ENV', 'development').lower() == 'production'
             data_ready = DATA.ready() if DATA is not None else not production
-            ready = assets_ready and data_ready
+            redis_ready = self._runtime_store_ready() if production else True
+            ready = assets_ready and data_ready and redis_ready
             status = 200 if ready else 503
-            self._send_json({'status': 'ready' if ready else 'not_ready', 'app': 'ezwatek', 'version': APP_VERSION}, status, include_body)
+            self._send_json(
+                {
+                    'status': 'ready' if ready else 'not_ready',
+                    'app': 'ezwatek',
+                    'version': APP_VERSION,
+                    'checks': {'assets': assets_ready, 'data_store': data_ready, 'redis': redis_ready},
+                },
+                status,
+                include_body,
+            )
             return
         asset = STATIC_ASSETS.get(path)
         if asset:
@@ -2428,6 +2457,15 @@ class AppHandler(BaseHTTPRequestHandler):
     def do_DELETE(self):
         self._reject_state_change()
 
+    def do_PATCH(self):
+        self._reject_state_change()
+
+    def do_TRACE(self):
+        self._reject_state_change()
+
+    def do_CONNECT(self):
+        self._reject_state_change()
+
     def do_OPTIONS(self):
         self._send_payload(b'', 'text/plain; charset=utf-8', 204, False, {'Allow': 'GET, HEAD, POST, OPTIONS'})
 
@@ -2462,3 +2500,5 @@ if __name__ == '__main__':
         pass
     finally:
         server.server_close()
+        if DATA is not None:
+            DATA.close()

@@ -61,6 +61,16 @@ class OIDCTests(unittest.TestCase):
         }, config)
         self.assertEqual(roles, ('owner', 'security_auditor'))
 
+    def test_malformed_resource_roles_are_ignored_safely(self):
+        config = OIDCConfig(
+            issuer='https://identity.azwatek.jo/realms/ezwatek',
+            client_id='ezwatek-web',
+            redirect_uri='https://app.azwatek.jo/auth/callback',
+            role_map=(('owner', 'ezwatek-owner'),),
+        )
+        roles = _roles_from_claims({'resource_access': {'ezwatek-web': {'roles': [{'not': 'a string'}]}}}, config)
+        self.assertEqual(roles, ())
+
     def test_invalid_endpoint_is_rejected(self):
         config = OIDCConfig(
             issuer='http://identity.azwatek.jo/realms/ezwatek',

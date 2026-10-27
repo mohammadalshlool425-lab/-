@@ -151,6 +151,10 @@ class AppSecurityTests(unittest.TestCase):
             self.fetch('/', method='POST')
         self.assertEqual(caught.exception.code, 405)
         self.assertEqual(caught.exception.headers['Allow'], 'GET, HEAD, OPTIONS')
+        with self.assertRaises(HTTPError) as caught:
+            self.fetch('/', method='PATCH')
+        self.assertEqual(caught.exception.code, 405)
+        self.assertEqual(caught.exception.headers['X-Content-Type-Options'], 'nosniff')
 
     def test_production_can_remove_public_admin_markup(self):
         original_env = os.environ.get('APP_ENV')

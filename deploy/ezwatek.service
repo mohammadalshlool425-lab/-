@@ -1,6 +1,8 @@
 [Unit]
 Description=Ezwatek secure application server
 After=network.target
+StartLimitIntervalSec=60
+StartLimitBurst=5
 
 [Service]
 Type=simple
@@ -12,6 +14,7 @@ Environment=BIND_HOST=127.0.0.1
 ExecStartPre=/usr/bin/python3 /opt/ezwatek/scripts/validate_production_config.py
 ExecStart=/usr/bin/python3 /opt/ezwatek/app.py
 Restart=on-failure
+RestartPreventExitStatus=78
 RestartSec=3
 NoNewPrivileges=true
 PrivateTmp=true

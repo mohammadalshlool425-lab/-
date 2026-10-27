@@ -67,6 +67,8 @@ class InMemoryJobQueue:
         if max_jobs < 1:
             raise ValueError("max_jobs must be positive")
         self.max_jobs = max_jobs
+        if not isinstance(max_attempts, int) or max_attempts < 1:
+            raise ValueError("max_attempts must be positive")
         self.max_attempts = max_attempts
         self._pending: deque[Job] = deque()
         self._dead_letters: list[Job] = []
@@ -134,6 +136,10 @@ class RedisJobQueue:
         max_stream_length: int = 100_000,
         client=None,
     ):
+        if not isinstance(max_attempts, int) or max_attempts < 1:
+            raise ValueError("max_attempts must be positive")
+        if not isinstance(max_stream_length, int) or max_stream_length < 1:
+            raise ValueError("max_stream_length must be positive")
         self.stream = stream
         self.dead_letter_stream = stream + ":dead"
         self.group = group
@@ -217,22 +223,23 @@ class RedisJobQueue:
             self.client.xack(self.stream, self.group, job.stream_id)
 
     def retry(self, job: Job) -> Job | None:
-        self.ack(job)
+        """Publish the next attempt before acknowledging the current delivery.
+
+        This preserves at-least-once delivery if Redis is interrupted during a
+        retry. A failed acknowledgement can produce a duplicate, which handlers
+        must tolerate through their own idempotency keys; losing a job is worse.
+        """
         next_attempt = job.attempts + 1
-        if next_attempt > self.max_attempts:
-            self.client.xadd(
-                self.dead_letter_stream,
-                self._fields_for(job, next_attempt),
-                maxlen=self.max_stream_length,
-                approximate=True,
-            )
-            return None
+        target_stream = self.dead_letter_stream if next_attempt >= self.max_attempts else self.stream
         stream_id = self.client.xadd(
-            self.stream,
+            target_stream,
             self._fields_for(job, next_attempt),
             maxlen=self.max_stream_length,
             approximate=True,
         )
+        self.ack(job)
+        if target_stream == self.dead_letter_stream:
+            return None
         return replace(job, attempts=next_attempt, stream_id=str(stream_id), enqueued_at=time.time())
 
     def _fields_for(self, job: Job, attempts: int) -> dict[str, str]:

@@ -59,6 +59,7 @@ python -m py_compile app.py security.py jobs.py worker.py config.py oidc.py repo
 - `BRANDING.md`: خيارات اسم المنصة ومعايير الاختيار داخل السوق الأردني.
 - `ROADMAP.md`: مراحل نقل النموذج إلى IAM/OIDC وبيانات وتشغيل إنتاجي.
 - `docs/API_CONTRACT.md`: عقد المسارات الحالية، الصلاحيات، idempotency، وأجزاء الدفع/الإشعارات غير المنفذة بعد.
+- `docs/OPERATIONS_RUNBOOK.md`: بوابة الإصدار، النشر، الترحيل، التراجع، والاستجابة للأحداث دون تجاوز fail-closed.
 - `db/migrations/0001_initial.sql` و`0002_seed_service_catalog.sql` و`0003_order_request_fingerprint.sql`: مخطط PostgreSQL للحجوزات والمزودين والمدفوعات والتدقيق، وكتالوج الخدمات الأردني العام وبصمة idempotency keyed دون بيانات عملاء أو مزودين.
 - `db/README.md`: حدود الصلاحيات والنسخ الاحتياطي وتشفير البيانات.
 - `requirements-dev.txt` و`pyproject.toml`: أدوات Ruff وBandit وpip-audit للتحقق المحلي وCI.

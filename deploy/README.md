@@ -22,7 +22,7 @@ docker run --rm --read-only --cap-drop=ALL --security-opt=no-new-privileges \
 
 ## خدمة النظام
 
-`ezwatek.service` يشغّل العملية كمستخدم غير root مع sandboxing أساسي. عدّل `WorkingDirectory` و`ExecStart` وملف `EnvironmentFile` حسب المسار الفعلي، ثم:
+`ezwatek.service` يشغّل العملية كمستخدم غير root مع sandboxing أساسي. رمز الخروج `78` مخصص لرفض الإعداد الإنتاجي، لذلك لا يعيد systemd تشغيل الخدمة بلا نهاية عند غياب OIDC أو PostgreSQL أو Redis أو WAF. عدّل `WorkingDirectory` و`ExecStart` وملف `EnvironmentFile` حسب المسار الفعلي، ثم:
 
 ```bash
 sudo systemctl daemon-reload

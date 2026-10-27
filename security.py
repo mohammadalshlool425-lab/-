@@ -15,6 +15,7 @@ import binascii
 import hashlib
 import json
 import hmac
+import math
 import os
 import re
 import secrets
@@ -36,6 +37,48 @@ TOTP_DIGITS = 6
 
 USERNAME_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._@+\-]{2,63}$")
 DIGITS_RE = re.compile(r"^[0-9]{6}$")
+
+
+_REDIS_INCR_EXPIRE_SCRIPT = """
+local count = redis.call('INCR', KEYS[1])
+if count == 1 then
+  redis.call('EXPIRE', KEYS[1], ARGV[1])
+end
+return count
+"""
+_REDIS_LOGIN_FAILURE_SCRIPT = """
+local count = redis.call('INCR', KEYS[1])
+if count == 1 then
+  redis.call('EXPIRE', KEYS[1], ARGV[1])
+end
+if count >= tonumber(ARGV[2]) then
+  redis.call('SETEX', KEYS[2], ARGV[3], '1')
+end
+return count
+"""
+
+
+def _redis_incr_with_expiry(client, key: str, ttl_seconds: int) -> int:
+    """Increment a Redis counter and set its first-write expiry atomically.
+
+    The small fallback keeps the in-memory test double and older adapters usable;
+    the production redis-py client uses the Lua transaction to avoid orphaned
+    counters when a process is interrupted between INCR and EXPIRE.
+    """
+    evaluator = getattr(client, 'eval', None)
+    if callable(evaluator):
+        return int(evaluator(_REDIS_INCR_EXPIRE_SCRIPT, 1, key, max(1, int(ttl_seconds))))
+    pipeline_factory = getattr(client, 'pipeline', None)
+    if callable(pipeline_factory):
+        pipeline = pipeline_factory(transaction=True)
+        pipeline.incr(key)
+        pipeline.expire(key, max(1, int(ttl_seconds)))
+        result = pipeline.execute()
+        return int(result[0])
+    count = int(client.incr(key))
+    if count == 1:
+        client.expire(key, max(1, int(ttl_seconds)))
+    return count
 
 
 ROLE_PERMISSIONS = {
@@ -340,11 +383,22 @@ class RedisLoginThrottle:
     def failure(self, key: str, now: float | None = None) -> None:
         del now
         failure_key = self._failure_key(key)
-        count = int(self.client.incr(failure_key))
-        if count == 1:
-            self.client.expire(failure_key, self.window_seconds)
+        lock_key = self._lock_key(key)
+        evaluator = getattr(self.client, 'eval', None)
+        if callable(evaluator):
+            evaluator(
+                _REDIS_LOGIN_FAILURE_SCRIPT,
+                2,
+                failure_key,
+                lock_key,
+                max(1, int(self.window_seconds)),
+                max(1, int(self.max_failures)),
+                max(1, int(self.lockout_seconds)),
+            )
+            return
+        count = _redis_incr_with_expiry(self.client, failure_key, self.window_seconds)
         if count >= self.max_failures:
-            self.client.setex(self._lock_key(key), self.lockout_seconds, '1')
+            self.client.setex(lock_key, self.lockout_seconds, '1')
 
     def success(self, key: str) -> None:
         self.client.delete(self._failure_key(key), self._lock_key(key))
@@ -378,9 +432,7 @@ class RedisWindowLimiter:
         digest = hashlib.sha256(str(key).encode('utf-8')).hexdigest()
         redis_key = f'{self.prefix}{window}:{digest}'
         try:
-            count = int(self.client.incr(redis_key))
-            if count == 1:
-                self.client.expire(redis_key, self.window_seconds + 1)
+            count = _redis_incr_with_expiry(self.client, redis_key, self.window_seconds + 1)
             return count <= self.limit
         except Exception:
             return False
@@ -474,12 +526,35 @@ class RedisSessionStore:
     @staticmethod
     def _decode(value: str) -> Session:
         data = json.loads(value)
+        if not isinstance(data, dict) or not isinstance(data.get('roles'), list):
+            raise ValueError('invalid_session_record')
+        token = data.get('token')
+        csrf_token = data.get('csrf_token')
+        username = data.get('username')
+        roles = data.get('roles')
+        subject = data.get('subject')
+        if (
+            not isinstance(token, str)
+            or not token
+            or not isinstance(csrf_token, str)
+            or not csrf_token
+            or not isinstance(username, str)
+            or not username
+            or not roles
+            or not all(isinstance(role, str) and role in ROLE_PERMISSIONS for role in roles)
+            or subject is not None and not isinstance(subject, str)
+        ):
+            raise ValueError('invalid_session_record')
+        created_at = float(data['created_at'])
+        expires_at = float(data['expires_at'])
+        if not math.isfinite(created_at) or not math.isfinite(expires_at):
+            raise ValueError('invalid_session_record')
         return Session(
-            token=str(data['token']),
-            csrf_token=str(data['csrf_token']),
-            identity=Identity(str(data['username']), tuple(str(role) for role in data['roles']), str(data['subject']) if data.get('subject') else None),
-            created_at=float(data['created_at']),
-            expires_at=float(data['expires_at']),
+            token=token,
+            csrf_token=csrf_token,
+            identity=Identity(username, tuple(roles), subject),
+            created_at=created_at,
+            expires_at=expires_at,
         )
 
     def create(self, identity: Identity, now: float | None = None) -> Session:
@@ -502,7 +577,7 @@ class RedisSessionStore:
         except (TypeError, ValueError, KeyError, json.JSONDecodeError):
             return None
         now = time.time() if now is None else now
-        if session.expires_at <= now:
+        if session.token != token or session.expires_at <= now:
             self.revoke(token)
             return None
         return session
