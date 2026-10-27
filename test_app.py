@@ -52,6 +52,21 @@ class AppSecurityTests(unittest.TestCase):
         self.assertEqual(response.status, 200)
         self.assertIn('"status":"ready"', response.read().decode('utf-8'))
 
+    def test_production_readiness_fails_without_external_dependencies(self):
+        original_env = os.environ.get('APP_ENV')
+        try:
+            os.environ['APP_ENV'] = 'production'
+            with self.assertRaises(HTTPError) as caught:
+                self.fetch('/ready')
+            self.assertEqual(caught.exception.code, 503)
+            body = caught.exception.read().decode('utf-8')
+            self.assertIn('"identity_provider":false', body)
+        finally:
+            if original_env is None:
+                os.environ.pop('APP_ENV', None)
+            else:
+                os.environ['APP_ENV'] = original_env
+
     def test_service_catalog_is_readable_without_authentication(self):
         response = self.fetch('/api/services')
         payload = response.read().decode('utf-8')

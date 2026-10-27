@@ -1133,7 +1133,7 @@ HTML = r'''<!doctype html>
           <div><p class="modal-kicker">مركز القيادة · تشغيل موثوق</p><h1>لوحة المدير العام</h1><p>تظهر المؤشرات بعد مصادقة المدير وقراءتها من مخزن التشغيل.</p></div>
           <div class="admin-heading-actions"><button class="ghost-button" type="button" data-action="admin-login"><span class="icon" data-icon="lock"></span> دخول المدير</button><button class="ghost-button" type="button" data-action="audit"><span class="icon" data-icon="clipboard"></span> سجل التدقيق</button><button class="primary-button" type="button" data-action="security"><span class="icon" data-icon="shield"></span> مركز الحماية</button></div>
         </div>
-        <div class="admin-security-banner"><div class="security-shield"><span class="icon" data-icon="shield"></span></div><div class="security-banner-copy"><strong id="adminLiveState">بانتظار جلسة مدير مصادق عليها</strong><p>لا تُعرض أرقام ثابتة أو بيانات تجريبية في production.</p></div></div>
+        <div class="admin-security-banner"><div class="security-shield"><span class="icon" data-icon="shield"></span></div><div class="security-banner-copy"><strong id="adminLiveState">بانتظار جلسة مدير مصادق عليها</strong><p>لا تُعرض أرقام ثابتة أو بيانات تجريبية في بيئة الإنتاج.</p></div></div>
         <div class="admin-kpis">
           <article class="admin-kpi"><div class="admin-kpi-top"><span class="admin-kpi-icon"><span class="icon" data-icon="clipboard"></span></span></div><label>الطلبات اليوم</label><strong id="adminOrdersToday">—</strong></article>
           <article class="admin-kpi"><div class="admin-kpi-top"><span class="admin-kpi-icon green"><span class="icon" data-icon="wallet"></span></span></div><label>حجم الخدمات</label><strong id="adminServiceVolume">—</strong></article>
@@ -2457,14 +2457,15 @@ class AppHandler(BaseHTTPRequestHandler):
             production = os.environ.get('APP_ENV', 'development').lower() == 'production'
             data_ready = DATA.ready() if DATA is not None else not production
             redis_ready = self._runtime_store_ready() if production else True
-            ready = assets_ready and data_ready and redis_ready
+            identity_ready = OIDC is not None if production else True
+            ready = assets_ready and data_ready and redis_ready and identity_ready
             status = 200 if ready else 503
             self._send_json(
                 {
                     'status': 'ready' if ready else 'not_ready',
                     'app': 'ezwatek',
                     'version': APP_VERSION,
-                    'checks': {'assets': assets_ready, 'data_store': data_ready, 'redis': redis_ready},
+                    'checks': {'assets': assets_ready, 'data_store': data_ready, 'redis': redis_ready, 'identity_provider': identity_ready},
                 },
                 status,
                 include_body,
