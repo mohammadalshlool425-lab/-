@@ -1067,6 +1067,7 @@ HTML = r'''<!doctype html>
 
       <!-- ADMIN_UI_START -->
       <!-- General manager command center -->
+      <!-- ADMIN_PREVIEW_DATA_START -->
       <section class="view admin-view" id="admin-view" data-page="admin">
         <div class="admin-heading">
           <div>
@@ -1125,6 +1126,23 @@ HTML = r'''<!doctype html>
           <article class="admin-panel"><div class="admin-panel-head"><div><h3>التغطية التشغيلية</h3><p>توزيع الطلبات حسب المدينة</p></div><span class="admin-live">+ ٨.٢٪ هذا الأسبوع</span></div><div class="coverage-row"><span>عمّان</span><div class="coverage-track"><div class="coverage-fill w68"></div></div><strong>٦٨٪</strong></div><div class="coverage-row"><span>إربد</span><div class="coverage-track"><div class="coverage-fill w19"></div></div><strong>١٩٪</strong></div><div class="coverage-row"><span>الزرقاء</span><div class="coverage-track"><div class="coverage-fill w9"></div></div><strong>٩٪</strong></div><div class="coverage-row"><span>العقبة</span><div class="coverage-track"><div class="coverage-fill w4"></div></div><strong>٤٪</strong></div></article>
         </div>
       </section>
+      <!-- ADMIN_PREVIEW_DATA_END -->
+      <!-- ADMIN_LIVE_SHELL_START -->
+      <section class="view admin-view" id="admin-view" data-page="admin">
+        <div class="page-title">
+          <div><p class="modal-kicker">مركز القيادة · تشغيل موثوق</p><h1>لوحة المدير العام</h1><p>تظهر المؤشرات بعد مصادقة المدير وقراءتها من مخزن التشغيل.</p></div>
+          <div class="admin-heading-actions"><button class="ghost-button" type="button" data-action="admin-login"><span class="icon" data-icon="lock"></span> دخول المدير</button><button class="ghost-button" type="button" data-action="audit"><span class="icon" data-icon="clipboard"></span> سجل التدقيق</button><button class="primary-button" type="button" data-action="security"><span class="icon" data-icon="shield"></span> مركز الحماية</button></div>
+        </div>
+        <div class="admin-security-banner"><div class="security-shield"><span class="icon" data-icon="shield"></span></div><div class="security-banner-copy"><strong id="adminLiveState">بانتظار جلسة مدير مصادق عليها</strong><p>لا تُعرض أرقام ثابتة أو بيانات تجريبية في production.</p></div></div>
+        <div class="admin-kpis">
+          <article class="admin-kpi"><div class="admin-kpi-top"><span class="admin-kpi-icon"><span class="icon" data-icon="clipboard"></span></span></div><label>الطلبات اليوم</label><strong id="adminOrdersToday">—</strong></article>
+          <article class="admin-kpi"><div class="admin-kpi-top"><span class="admin-kpi-icon green"><span class="icon" data-icon="wallet"></span></span></div><label>حجم الخدمات</label><strong id="adminServiceVolume">—</strong></article>
+          <article class="admin-kpi"><div class="admin-kpi-top"><span class="admin-kpi-icon blue"><span class="icon" data-icon="user"></span></span></div><label>المزوّدون النشطون</label><strong id="adminActiveProviders">—</strong></article>
+          <article class="admin-kpi"><div class="admin-kpi-top"><span class="admin-kpi-icon amber"><span class="icon" data-icon="star"></span></span></div><label>رضا العملاء</label><strong id="adminCustomerSatisfaction">—</strong></article>
+        </div>
+        <div class="admin-panel"><div class="admin-panel-head"><div><h3>البيانات التشغيلية</h3><p>المصدر: PostgreSQL بعد التحقق من الصلاحيات</p></div></div><p class="empty-state">توزيع الطلبات، المدفوعات، الموافقات، والتقارير التفصيلية لن تظهر قبل ربط مساراتها التشغيلية واختبارها.</p></div>
+      </section>
+      <!-- ADMIN_LIVE_SHELL_END -->
       <!-- ADMIN_UI_END -->
 
       <!-- Settings -->
@@ -1210,7 +1228,7 @@ HTML = r'''<!doctype html>
   <div class="overlay" id="securityModal" role="dialog" aria-modal="true" aria-labelledby="securityModalTitle">
     <div class="modal-card security-modal">
       <div class="modal-head"><div><p class="modal-kicker">Security Operations Center</p><h2 id="securityModalTitle">مركز الحماية</h2></div><button class="close-button" type="button" data-close="securityModal" aria-label="إغلاق"><span class="icon" data-icon="x"></span></button></div>
-      <div class="security-modal-body"><div class="security-modal-intro"><div class="security-shield"><span class="icon" data-icon="shield"></span></div><div><strong>الحالة العامة: محمية</strong><span>لا توجد حوادث حرجة مفتوحة · آخر تقييم ٢٦ أكتوبر ٢٠٢٦</span></div></div><div class="security-detail-list"><div class="security-detail"><strong>٩٨.٤٪</strong><span class="secure-value">تغطية المصادقة متعددة العوامل</span></div><div class="security-detail"><strong>٢٧</strong><span>محاولات مشبوهة محظورة اليوم</span></div><div class="security-detail"><strong>١٢ دقيقة</strong><span>منذ آخر نسخة احتياطية مشفّرة</span></div><div class="security-detail"><strong>٠</strong><span class="secure-value">ثغرات حرجة غير معالجة</span></div></div><div class="security-modal-note"><strong>ملاحظة تشغيلية:</strong> هذه الواجهة جزء من طبقات الحماية ولا تستبدل جدار حماية تطبيقات الويب، إدارة الهوية، مراقبة السجلات، واختبارات الاختراق في بيئة الإنتاج.</div><div class="security-modal-actions"><button class="primary-button" type="button" id="reviewSessions"><span class="icon" data-icon="lock"></span> مراجعة الجلسات</button><button class="ghost-button" type="button" id="rotateKeys"><span class="icon" data-icon="settings"></span> طلب تدوير المفاتيح</button></div></div>
+      <div class="security-modal-body"><div class="security-modal-intro"><div class="security-shield"><span class="icon" data-icon="shield"></span></div><div><strong id="securityModalStatus">الحالة العامة: تتطلب قراءة مباشرة</strong><span>لا تُعرض مؤشرات ثابتة قبل مصادقة المدير وقراءة مخزن التشغيل</span></div></div><div class="security-detail-list"><div class="security-detail"><strong>—</strong><span class="secure-value">تغطية المصادقة متعددة العوامل</span></div><div class="security-detail"><strong id="securityBlockedAttempts">—</strong><span>محاولات مشبوهة محظورة خلال ٢٤ ساعة</span></div><div class="security-detail"><strong>—</strong><span>عمر آخر نسخة احتياطية مشفّرة</span></div><div class="security-detail"><strong>—</strong><span class="secure-value">ثغرات حرجة غير معالجة</span></div></div><div class="security-modal-note"><strong>ملاحظة تشغيلية:</strong> هذه الواجهة جزء من طبقات الحماية ولا تستبدل جدار حماية تطبيقات الويب، إدارة الهوية، مراقبة السجلات، واختبارات الاختراق في بيئة الإنتاج.</div><div class="security-modal-actions"><button class="primary-button" type="button" id="reviewSessions"><span class="icon" data-icon="lock"></span> مراجعة الجلسات</button><button class="ghost-button" type="button" id="rotateKeys"><span class="icon" data-icon="settings"></span> طلب تدوير المفاتيح</button></div></div>
     </div>
   </div>
   <!-- ADMIN_UI_END -->
@@ -1290,6 +1308,7 @@ HTML = r'''<!doctype html>
       const notificationPanel = $('#notificationPanel');
       if (notificationPanel) notificationPanel.classList.remove('open');
       if (view === 'orders') loadCustomerOrders();
+      if (view === 'admin') loadAdminOverview();
       window.scrollTo({ top: 0, behavior: 'smooth' });
     }
 
@@ -1476,6 +1495,33 @@ HTML = r'''<!doctype html>
     $('#trackSuccess').addEventListener('click', () => { closeOverlay('successModal'); switchView('orders'); showToast(lastCreatedOrder ? 'تم فتح قائمة طلباتك' : 'هذه المعاينة لا تحتوي على طلبات فعلية'); });
     $('#homeSuccess').addEventListener('click', () => { closeOverlay('successModal'); switchView('home'); });
 
+    function resetAdminMetrics() {
+      ['#adminOrdersToday', '#adminServiceVolume', '#adminActiveProviders', '#adminCustomerSatisfaction'].forEach(selector => {
+        const element = $(selector);
+        if (element) element.textContent = '—';
+      });
+    }
+    async function loadAdminOverview() {
+      const state = $('#adminLiveState');
+      if (!state) return;
+      resetAdminMetrics();
+      try {
+        const response = await fetch('/api/admin/overview', { credentials: 'same-origin' });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'admin_overview_failed');
+        const number = new Intl.NumberFormat('ar-JO', { maximumFractionDigits: 2 });
+        const money = value => value == null ? '—' : number.format(Number(value)) + ' د.أ';
+        const rating = value => value == null ? '—' : number.format(Number(value)) + ' / ٥';
+        $('#adminOrdersToday').textContent = number.format(Number(result.orders_today || 0));
+        $('#adminServiceVolume').textContent = money(result.service_volume_jod);
+        $('#adminActiveProviders').textContent = number.format(Number(result.active_providers || 0));
+        $('#adminCustomerSatisfaction').textContent = rating(result.customer_satisfaction);
+        state.textContent = 'تمت قراءة المؤشرات من مخزن التشغيل الموثوق.';
+      } catch (errorValue) {
+        state.textContent = 'تعذر قراءة المؤشرات؛ لم نعرض بيانات بديلة.';
+      }
+    }
+
     async function loadCustomerOrders() {
       const list = $('#customerOrdersList');
       const empty = $('#ordersEmptyNotice');
@@ -1607,7 +1653,22 @@ HTML = r'''<!doctype html>
     function openIntro() { introStep = 0; renderIntro(); openOverlay('introModal'); }
     $('#introNext').addEventListener('click', () => { if (introStep < introSlides.length - 1) { introStep++; renderIntro(); } else { closeOverlay('introModal'); openBooking('تنظيف وتعقيم'); } });
 
-    function openSecurityCenter() { openOverlay('securityModal'); }
+    async function openSecurityCenter() {
+      openOverlay('securityModal');
+      const status = $('#securityModalStatus');
+      const blocked = $('#securityBlockedAttempts');
+      if (status) status.textContent = 'الحالة العامة: جارٍ التحقق';
+      if (blocked) blocked.textContent = '—';
+      try {
+        const response = await fetch('/api/admin/security', { credentials: 'same-origin' });
+        const result = await response.json();
+        if (!response.ok) throw new Error(result.error || 'admin_security_failed');
+        if (status) status.textContent = 'الحالة العامة: تمت القراءة من مخزن التشغيل';
+        if (blocked && result.blocked_attempts != null) blocked.textContent = new Intl.NumberFormat('ar-JO').format(Number(result.blocked_attempts));
+      } catch (errorValue) {
+        if (status) status.textContent = 'الحالة العامة: تعذر التحقق';
+      }
+    }
     function openAdminAuth() { openOverlay('adminAuthModal'); setTimeout(() => $('#adminUsername').focus(), 120); }
     async function loginAdmin() {
       const error = $('#adminAuthError');
@@ -1775,6 +1836,10 @@ RATE_LIMIT_WINDOW = 60
 RATE_LIMIT_MAX_REQUESTS = 180
 ADMIN_UI_START = '<!-- ADMIN_UI_START -->'
 ADMIN_UI_END = '<!-- ADMIN_UI_END -->'
+ADMIN_PREVIEW_DATA_START = '<!-- ADMIN_PREVIEW_DATA_START -->'
+ADMIN_PREVIEW_DATA_END = '<!-- ADMIN_PREVIEW_DATA_END -->'
+ADMIN_LIVE_SHELL_START = '<!-- ADMIN_LIVE_SHELL_START -->'
+ADMIN_LIVE_SHELL_END = '<!-- ADMIN_LIVE_SHELL_END -->'
 PREVIEW_NOTICE_START = '<!-- PREVIEW_NOTICE_START -->'
 PREVIEW_NOTICE_END = '<!-- PREVIEW_NOTICE_END -->'
 CUSTOMER_SAMPLE_ORDERS_START = '<!-- CUSTOMER_SAMPLE_ORDERS_START -->'
@@ -2420,9 +2485,14 @@ class AppHandler(BaseHTTPRequestHandler):
             return
         nonce = secrets.token_urlsafe(18)
         rendered = HTML.replace('__CSP_NONCE__', nonce)
+        production = os.environ.get('APP_ENV', 'development').lower() == 'production'
         if not self._admin_ui_enabled():
             rendered = remove_marked_blocks(rendered, ADMIN_UI_START, ADMIN_UI_END)
-        if os.environ.get('APP_ENV', 'development').lower() == 'production':
+        elif production:
+            rendered = remove_marked_blocks(rendered, ADMIN_PREVIEW_DATA_START, ADMIN_PREVIEW_DATA_END)
+        else:
+            rendered = remove_marked_blocks(rendered, ADMIN_LIVE_SHELL_START, ADMIN_LIVE_SHELL_END)
+        if production:
             rendered = remove_marked_blocks(rendered, PREVIEW_NOTICE_START, PREVIEW_NOTICE_END)
             rendered = remove_marked_blocks(rendered, CUSTOMER_SAMPLE_ORDERS_START, CUSTOMER_SAMPLE_ORDERS_END)
             rendered = remove_marked_blocks(rendered, PREVIEW_NOTIFICATIONS_START, PREVIEW_NOTIFICATIONS_END)

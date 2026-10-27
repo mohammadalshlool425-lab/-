@@ -24,7 +24,7 @@ python scripts/validate_production_config.py --json
 APP_ENV=development python app.py
 ```
 
-لوحة المدير مخفية افتراضياً في الإنتاج لتقليل التعرّض. أنشئ هوية إدارية وMFA فقط لبيئة التطوير/الانتقال قبل ربط OIDC:
+لوحة المدير مخفية افتراضياً في الإنتاج لتقليل التعرّض. عند تفعيلها عبر `ADMIN_UI_ENABLED=1` لا تعرض إلا مؤشرات تقرأها مسارات الإدارة بعد مصادقة المدير؛ لا يوجد fallback إلى أرقام تجريبية. أنشئ هوية إدارية وMFA فقط لبيئة التطوير/الانتقال قبل ربط OIDC:
 
 ```bash
 python scripts/bootstrap_iam.py

@@ -180,6 +180,14 @@ class AppSecurityTests(unittest.TestCase):
             self.assertNotIn('ليان أحمد', app.HTML)
             self.assertNotIn('079 123 4567', app.HTML)
             self.assertNotIn('nav-count">2', app.HTML)
+            production_admin = app.remove_marked_blocks(app.HTML, app.ADMIN_PREVIEW_DATA_START, app.ADMIN_PREVIEW_DATA_END)
+            self.assertNotIn('بيانات المعاينة', production_admin)
+            self.assertIn('id="adminLiveState"', production_admin)
+            os.environ['ADMIN_UI_ENABLED'] = '1'
+            production_response = self.fetch('/')
+            production_body = production_response.read().decode('utf-8')
+            self.assertNotIn('١,٢٨٤', production_body)
+            self.assertIn('id="adminLiveState"', production_body)
         finally:
             if original_env is None:
                 os.environ.pop('APP_ENV', None)
