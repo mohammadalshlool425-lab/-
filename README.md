@@ -6,7 +6,7 @@
 
 ## التشغيل
 
-لا توجد تبعيات خارجية مطلوبة؛ يعتمد الخادم على Python Standard Library.
+المعاينة المحلية لا تحتاج تبعيات خارجية؛ يعتمد الخادم في هذا الوضع على Python Standard Library. تشغيل production يتطلب الحزم المثبتة في `requirements-production.txt` لـ OIDC وRedis وPostgreSQL وتشفير العناوين.
 
 ```bash
 python app.py
@@ -34,7 +34,7 @@ python scripts/bootstrap_iam.py
 
 ```bash
 python -m unittest -v
-python -m py_compile app.py security.py jobs.py worker.py config.py oidc.py scripts/bootstrap_iam.py scripts/validate_production_config.py
+python -m py_compile app.py security.py jobs.py worker.py config.py oidc.py repository.py scripts/*.py
 ```
 
 ## مكوّنات المشروع
@@ -44,7 +44,7 @@ python -m py_compile app.py security.py jobs.py worker.py config.py oidc.py scri
 - `favicon.svg`: هوية عزوتك المصغّرة.
 - `SECURITY.md`: متطلبات الحماية قبل ربط بيانات حقيقية أو مدفوعات.
 - `security.py`: IAM وMFA وRBAC والجلسات وCSRF primitives، مع Redis sessions وlogin/request throttling موزعين للإنتاج.
-- `requirements-production.txt`: اعتماد Redis مثبت للإنتاج فقط؛ المعاينة تبقى بدون تبعيات.
+- `requirements-production.txt`: تبعيات OIDC وRedis وPostgreSQL والتشفير اللازمة للإنتاج؛ المعاينة تبقى بدون تبعيات خارجية.
 - `jobs.py` و`worker.py`: طوابير Redis Streams مع consumer groups وretry وdead-letter، وعامل منفصل للمهام الخلفية.
 - `config.py` و`scripts/validate_production_config.py`: بوابة fail-closed تمنع تشغيل production قبل OIDC وPostgreSQL وRedis وWAF.
 - `oidc.py`: Authorization Code + PKCE، discovery مقيد عبر HTTPS، تحقق RS256 من ID token، وربط مجموعات Keycloak بأدوار RBAC.
@@ -58,6 +58,7 @@ python -m py_compile app.py security.py jobs.py worker.py config.py oidc.py scri
 - `test_app.py` و`test_security.py` و`test_schema.py` و`test_config.py` و`test_jobs.py` و`test_worker.py` و`test_oidc.py` و`test_repository.py`: اختبارات الرؤوس، CSP nonce، IAM، MFA، OIDC، PostgreSQL repository، الجلسات، الإعداد الإنتاجي، الطوابير والعامل ومخطط قاعدة البيانات.
 - `BRANDING.md`: خيارات اسم المنصة ومعايير الاختيار داخل السوق الأردني.
 - `ROADMAP.md`: مراحل نقل النموذج إلى IAM/OIDC وبيانات وتشغيل إنتاجي.
+- `docs/API_CONTRACT.md`: عقد المسارات الحالية، الصلاحيات، idempotency، وأجزاء الدفع/الإشعارات غير المنفذة بعد.
 - `db/migrations/0001_initial.sql` و`0002_seed_service_catalog.sql` و`0003_order_request_fingerprint.sql`: مخطط PostgreSQL للحجوزات والمزودين والمدفوعات والتدقيق، وكتالوج الخدمات الأردني العام وبصمة idempotency keyed دون بيانات عملاء أو مزودين.
 - `db/README.md`: حدود الصلاحيات والنسخ الاحتياطي وتشفير البيانات.
 - `requirements-dev.txt` و`pyproject.toml`: أدوات Ruff وBandit وpip-audit للتحقق المحلي وCI.
