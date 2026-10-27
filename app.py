@@ -1857,6 +1857,7 @@ PREVIEW_PROVIDERS_END = '<!-- PREVIEW_PROVIDERS_END -->'
 _rate_buckets = defaultdict(deque)
 _rate_lock = threading.Lock()
 API_BODY_LIMIT = 16 * 1024
+REQUEST_SOCKET_TIMEOUT_SECONDS = 15
 ORDER_KEY_VERSION = 1
 ORDER_CITIES = frozenset({'amman', 'irbid', 'zarqa', 'aqaba', 'other'})
 _IDEMPOTENCY_PATTERN = re.compile(r'^[A-Za-z0-9._:-]{16,128}$')
@@ -2022,6 +2023,10 @@ class AppHandler(BaseHTTPRequestHandler):
 
     server_version = 'Ezwatek'
     sys_version = ''
+
+    def setup(self):
+        super().setup()
+        self.connection.settimeout(REQUEST_SOCKET_TIMEOUT_SECONDS)
 
     def _client_ip(self):
         # Do not trust a user-controlled X-Forwarded-For header by default.
