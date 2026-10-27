@@ -17,8 +17,9 @@ class FakeResult:
 
 
 class FakeConnection:
-    def __init__(self):
+    def __init__(self, schema_ready=True):
         self.queries = []
+        self.schema_ready = schema_ready
 
     def __enter__(self):
         return self
@@ -31,6 +32,8 @@ class FakeConnection:
 
     def execute(self, sql, params=()):
         self.queries.append((sql, params))
+        if 'to_regclass' in sql:
+            return FakeResult(('services', 'orders', 'audit_events') if self.schema_ready else (None, 'orders', 'audit_events'))
         if 'INSERT INTO app_users' in sql:
             return FakeResult(('customer-1',))
         if 'SELECT id, minimum_amount_minor' in sql:
@@ -55,8 +58,8 @@ class FakeConnection:
 
 
 class FakePool:
-    def __init__(self):
-        self.connection_instance = FakeConnection()
+    def __init__(self, schema_ready=True):
+        self.connection_instance = FakeConnection(schema_ready=schema_ready)
 
     def connection(self):
         return self.connection_instance
@@ -69,6 +72,11 @@ class RepositoryTests(unittest.TestCase):
     def setUp(self):
         self.pool = FakePool()
         self.repository = PostgresRepository('postgresql://runtime@localhost/db', pool=self.pool)
+
+    def test_readiness_requires_core_schema(self):
+        self.assertTrue(self.repository.ready())
+        incomplete = PostgresRepository('postgresql://runtime@localhost/db', pool=FakePool(schema_ready=False))
+        self.assertFalse(incomplete.ready())
 
     def test_services_are_read_from_database_rows(self):
         services = self.repository.list_services()

@@ -64,10 +64,15 @@ class PostgresRepository:
             self.pool.close()
 
     def ready(self) -> bool:
+        """Confirm connectivity and the core schema required by the API."""
         try:
             with self.pool.connection() as connection:
-                connection.execute("SELECT 1").fetchone()
-            return True
+                row = connection.execute("""
+                    SELECT to_regclass('public.services'),
+                           to_regclass('public.orders'),
+                           to_regclass('public.audit_events')
+                """).fetchone()
+            return bool(row and all(row))
         except Exception:
             return False
 
