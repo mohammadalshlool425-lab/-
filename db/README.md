@@ -20,7 +20,7 @@ for migration in db/migrations/*.sql; do
 done
 ```
 
-استخدم اتصالاً مشفراً إلى PostgreSQL، وحساب migration منفصلاً عن حساب التطبيق. حساب runtime يحتاج فقط صلاحيات DML محددة على الجداول المطلوبة ولا يملك `CREATE`, `ALTER`, أو `DROP`.
+استخدم اتصالاً مشفراً ومتحققاً من شهادة PostgreSQL (`sslmode=verify-full` مفضّل، أو `require`/`verify-ca` وفق سياسة الشهادات)، وحساب migration منفصلاً عن حساب التطبيق. بوابة production ترفض URL لا يفرض TLS. حساب runtime يحتاج فقط صلاحيات DML محددة على الجداول المطلوبة ولا يملك `CREATE`, `ALTER`, أو `DROP`.
 
 ## حدود البيانات الحساسة
 

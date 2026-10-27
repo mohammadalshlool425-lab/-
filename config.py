@@ -5,7 +5,7 @@ from __future__ import annotations
 import base64
 import binascii
 from os import environ
-from urllib.parse import urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 
 _PLACEHOLDER_MARKERS = (
@@ -42,6 +42,24 @@ def _https_url(value: str, field: str, issues: list[str], allow_path: bool = Tru
         issues.append(f"{field} contains a placeholder host")
 
 
+def _postgres_url(value: str, env: dict[str, str], issues: list[str]) -> None:
+    if any(char in value for char in "\r\n"):
+        issues.append("DATABASE_URL contains invalid control characters")
+        return
+    parsed = urlsplit(value)
+    if parsed.scheme not in {"postgresql", "postgres"} or not parsed.hostname or parsed.fragment:
+        issues.append("DATABASE_URL must target a PostgreSQL endpoint with a hostname")
+        return
+    query = parse_qs(parsed.query, keep_blank_values=True)
+    configured_sslmodes = query.get("sslmode", [])
+    if len(configured_sslmodes) > 1:
+        issues.append("DATABASE_URL must contain only one sslmode value")
+        return
+    sslmode = (configured_sslmodes[0] if configured_sslmodes else _value(env, "PGSSLMODE")).strip().lower()
+    if sslmode not in {"require", "verify-ca", "verify-full"}:
+        issues.append("DATABASE_URL or PGSSLMODE must require PostgreSQL TLS (require, verify-ca, or verify-full)")
+
+
 def validate_production_env(env: dict[str, str] | None = None) -> list[str]:
     """Return non-secret configuration errors; return no errors outside production."""
     values = dict(environ if env is None else env)
@@ -68,14 +86,19 @@ def validate_production_env(env: dict[str, str] | None = None) -> list[str]:
     if scopes and "openid" not in scopes:
         issues.append("OIDC_SCOPES must include openid when explicitly configured")
     role_map_text = _value(values, "OIDC_ROLE_MAP")
-    if role_map_text:
+    if not role_map_text:
+        issues.append("OIDC_ROLE_MAP must be explicitly configured in production")
+    else:
         valid_roles = {"customer", "owner", "ops_manager", "security_auditor", "support_lead"}
         mappings = []
         for item in role_map_text.split(","):
             parts = item.split("=", 1)
             mappings.append((parts[0].strip(), parts[1].strip()) if len(parts) == 2 else ("", ""))
+        mapped_roles = [app_role for app_role, _ in mappings]
         if not mappings or any(app_role not in valid_roles or not provider_group for app_role, provider_group in mappings):
             issues.append("OIDC_ROLE_MAP contains an invalid application-role mapping")
+        elif len(mapped_roles) != len(set(mapped_roles)):
+            issues.append("OIDC_ROLE_MAP contains duplicate application roles")
     redirect_uri = _value(values, "OIDC_REDIRECT_URI")
     _https_url(redirect_uri, "OIDC_REDIRECT_URI", issues)
     if public_origin and redirect_uri and not redirect_uri.startswith(public_origin.rstrip("/") + "/"):
@@ -96,6 +119,8 @@ def validate_production_env(env: dict[str, str] | None = None) -> list[str]:
     database_url = _value(values, "DATABASE_URL")
     if not database_url.startswith(("postgresql://", "postgres://")) or _is_placeholder(database_url):
         issues.append("DATABASE_URL must target a non-placeholder PostgreSQL endpoint in production")
+    else:
+        _postgres_url(database_url, values, issues)
     if _value(values, "WAF_MODE").lower() != "managed":
         issues.append("WAF_MODE must be managed in production")
     address_key = _value(values, "ORDER_ADDRESS_ENCRYPTION_KEY")

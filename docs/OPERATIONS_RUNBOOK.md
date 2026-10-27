@@ -33,7 +33,7 @@ python scripts/load_smoke.py --url http://127.0.0.1:8000/health --requests 100 -
 
 1. وافق على الإصدار وسجّل commit أو image digest الذي سيُنشر.
 2. حمّل الأسرار من Secret Manager في البيئة المستهدفة؛ لا تعدّل `.env.example` لإضافة أسرار.
-3. شغّل `validate_production_config.py --json`. أي خطأ يعني إيقاف النشر.
+3. شغّل `validate_production_config.py --json`. أي خطأ يعني إيقاف النشر؛ يجب أن يكون `OIDC_ROLE_MAP` صريحاً وأن يفرض اتصال PostgreSQL TLS.
 4. نفّذ migrations من pipeline منفصل بحساب migration، ثم تحقق من checksum و`schema_migrations`.
 5. انشر صورة Docker غير root أو حزمة النظام عبر systemd. لا تفتح المنفذ الداخلي للعامة.
 6. تحقق من `GET /health` ثم `GET /ready`. health يثبت liveness فقط، وready لا ينجح في production دون مخزن البيانات.

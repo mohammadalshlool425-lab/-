@@ -21,13 +21,14 @@ class ProductionConfigTests(unittest.TestCase):
             'PUBLIC_ORIGIN': 'https://app.azwatek.jo',
             'OIDC_ISSUER_URL': 'https://identity.azwatek.jo/realms/azwatek',
             'OIDC_CLIENT_ID': 'azwatek-web',
+            'OIDC_ROLE_MAP': 'customer=ezwatek-customer,owner=ezwatek-owner,ops_manager=ezwatek-ops,security_auditor=ezwatek-security,support_lead=ezwatek-support',
             'OIDC_REQUIRED_AMR': 'webauthn,fido2,otp',
             'OIDC_REDIRECT_URI': 'https://app.azwatek.jo/auth/callback',
             'SESSION_STORE': 'redis',
             'RATE_LIMIT_STORE': 'redis',
             'REDIS_URL': 'rediss://redis.internal:6380/0',
             'DATA_BACKEND': 'postgres',
-            'DATABASE_URL': 'postgresql://runtime:secret@postgres.internal:5432/azwatek',
+            'DATABASE_URL': 'postgresql://runtime:secret@postgres.internal:5432/azwatek?sslmode=verify-full',
             'WAF_MODE': 'managed',
             'ORDER_ADDRESS_ENCRYPTION_KEY': 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA',
         }
@@ -76,6 +77,19 @@ class ProductionConfigTests(unittest.TestCase):
     def test_invalid_oidc_role_map_is_rejected(self):
         issues = validate_production_env({'APP_ENV': 'production', 'OIDC_ROLE_MAP': 'not-a-role=group'})
         self.assertIn('OIDC_ROLE_MAP contains an invalid application-role mapping', issues)
+
+    def test_production_requires_explicit_role_map_and_postgres_tls(self):
+        issues = validate_production_env({
+            'APP_ENV': 'production',
+            'OIDC_ROLE_MAP': '',
+            'DATABASE_URL': 'postgresql://runtime@postgres.internal:5432/ezwatek',
+        })
+        self.assertIn('OIDC_ROLE_MAP must be explicitly configured in production', issues)
+        self.assertIn('DATABASE_URL or PGSSLMODE must require PostgreSQL TLS (require, verify-ca, or verify-full)', issues)
+
+    def test_duplicate_oidc_application_roles_are_rejected(self):
+        issues = validate_production_env({'APP_ENV': 'production', 'OIDC_ROLE_MAP': 'owner=group-a,owner=group-b'})
+        self.assertIn('OIDC_ROLE_MAP contains duplicate application roles', issues)
 
     def test_redirect_must_belong_to_public_origin(self):
         env = {

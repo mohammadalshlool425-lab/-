@@ -61,13 +61,15 @@ export IAM_MODE=oidc
 export PUBLIC_ORIGIN=https://app.your-domain.jo
 export OIDC_ISSUER_URL=https://identity.your-domain.jo/realms/ezwatek
 export OIDC_CLIENT_ID=ezwatek-web
+export OIDC_ROLE_MAP=customer=ezwatek-customer,owner=ezwatek-owner,ops_manager=ezwatek-ops,security_auditor=ezwatek-security,support_lead=ezwatek-support
 export OIDC_REQUIRED_AMR=webauthn,fido2,otp
 export OIDC_REDIRECT_URI=https://app.your-domain.jo/auth/callback
 export SESSION_STORE=redis
 export RATE_LIMIT_STORE=redis
 export REDIS_URL=rediss://...
 export DATA_BACKEND=postgres
-export DATABASE_URL=postgresql://...
+export DATABASE_URL='postgresql://.../ezwatek?sslmode=verify-full'
+# Alternative: inject PGSSLMODE=verify-full alongside a URL without query parameters.
 export WAF_MODE=managed
 export ENABLE_HSTS=1
 export ADMIN_UI_ENABLED=1

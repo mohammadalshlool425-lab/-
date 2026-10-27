@@ -70,7 +70,37 @@ class PostgresRepository:
                 row = connection.execute("""
                     SELECT to_regclass('public.services'),
                            to_regclass('public.orders'),
-                           to_regclass('public.audit_events')
+                           to_regclass('public.audit_events'),
+                           NOT EXISTS (
+                               SELECT 1
+                               FROM (VALUES
+                                   ('app_users', 'external_subject'),
+                                   ('service_categories', 'slug'),
+                                   ('services', 'category_id'),
+                                   ('services', 'minimum_amount_minor'),
+                                   ('providers', 'verification_status'),
+                                   ('provider_services', 'provider_id'),
+                                   ('orders', 'customer_id'),
+                                   ('orders', 'address_ciphertext'),
+                                   ('orders', 'address_nonce'),
+                                   ('orders', 'address_key_version'),
+                                   ('orders', 'request_fingerprint'),
+                                   ('orders', 'idempotency_key'),
+                                   ('orders', 'scheduled_from'),
+                                   ('orders', 'scheduled_to'),
+                                   ('order_events', 'event_type'),
+                                   ('audit_events', 'event_id'),
+                                   ('audit_events', 'outcome'),
+                                   ('audit_events', 'request_id')
+                               ) AS required(table_name, column_name)
+                               WHERE NOT EXISTS (
+                                   SELECT 1
+                                   FROM information_schema.columns AS columns
+                                   WHERE columns.table_schema = 'public'
+                                     AND columns.table_name = required.table_name
+                                     AND columns.column_name = required.column_name
+                               )
+                           ) AS schema_contract_ready
                 """).fetchone()
             return bool(row and all(row))
         except Exception:

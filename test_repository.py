@@ -33,7 +33,11 @@ class FakeConnection:
     def execute(self, sql, params=()):
         self.queries.append((sql, params))
         if 'to_regclass' in sql:
-            return FakeResult(('services', 'orders', 'audit_events') if self.schema_ready else (None, 'orders', 'audit_events'))
+            return FakeResult(
+                ('services', 'orders', 'audit_events', True)
+                if self.schema_ready
+                else (None, 'orders', 'audit_events', False)
+            )
         if 'INSERT INTO app_users' in sql:
             return FakeResult(('customer-1',))
         if 'SELECT id, minimum_amount_minor' in sql:
@@ -73,8 +77,11 @@ class RepositoryTests(unittest.TestCase):
         self.pool = FakePool()
         self.repository = PostgresRepository('postgresql://runtime@localhost/db', pool=self.pool)
 
-    def test_readiness_requires_core_schema(self):
+    def test_readiness_requires_core_schema_and_required_columns(self):
         self.assertTrue(self.repository.ready())
+        readiness_sql, _ = self.pool.connection_instance.queries[0]
+        self.assertIn('information_schema.columns', readiness_sql)
+        self.assertIn("'request_fingerprint'", readiness_sql)
         incomplete = PostgresRepository('postgresql://runtime@localhost/db', pool=FakePool(schema_ready=False))
         self.assertFalse(incomplete.ready())
 
