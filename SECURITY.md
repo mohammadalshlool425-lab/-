@@ -20,7 +20,7 @@
 - أساس IAM محلي للمعاينة/الانتقال فقط: scrypt لكلمات المرور، TOTP متوافق مع RFC 6238، جلسات HttpOnly، CSRF token، وRBAC بالـ permissions.
 - OIDC إنتاجي عبر Authorization Code + PKCE، state/nonce أحادية الاستخدام، discovery مقيد بـ HTTPS، وتحقق RS256 من ID token مع issuer/audience/expiry/nonce وربط أدوار Keycloak.
 - إعداد OIDC يرفض MFA ضعيفاً: يجب أن يثبت claim `amr` استخدام Passkey/WebAuthn (`webauthn` أو `fido2`) أو TOTP (`otp`) وفق إعداد `OIDC_REQUIRED_AMR`؛ Keycloak هو المسؤول عن رحلة WebAuthn الفعلية.
-- سجل تدقيق runtime محدود ومُنقّح مع endpoint محمي `GET /api/admin/audit`; عند `DATA_BACKEND=postgres` يُكتب synchronously إلى `audit_events` ويصبح فشل المخزن فشلاً مغلقاً، مع استمرار الحاجة إلى retention/backup append-only مُدار.
+- سجل تدقيق runtime محدود ومُنقّح مع endpoint محمي `GET /api/admin/audit`; عند `DATA_BACKEND=postgres` يُكتب synchronously إلى `audit_events` ويصبح فشل المخزن فشلاً مغلقاً، ويُستخدم OIDC subject كمعرّف المدقق عند توفره بدلاً من اسم العرض، مع استمرار الحاجة إلى retention/backup append-only مُدار.
 - قوالب Reverse Proxy في `deploy/` لـ Nginx وCaddy، مع TLS حديث، rate limiting، وحدود حجم الطلب.
 - GitHub Actions مع اختبارات متعددة لإصدارات Python، Ruff، Bandit، pip-audit، CodeQL، DAST smoke، ومراجعة تغييرات الاعتماديات وبناء صورة non-root.
 - مخطط PostgreSQL يفرض JOD، idempotency keyed، تشفير العناوين على مستوى التطبيق، وحدوداً منفصلة للتدقيق. `POST /api/orders` لا يعمل إلا لجلسة OIDC بدور `customer`، ويتطلب CSRF و`Idempotency-Key` ويكتب الطلب و`order.requested` في معاملة واحدة.

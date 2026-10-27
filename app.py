@@ -2219,7 +2219,7 @@ class AppHandler(BaseHTTPRequestHandler):
             self._audit('auth.oidc.callback_failed', success=False)
             self._send_json({'error': 'authentication_failed'}, 401, include_body, {'Cache-Control': 'no-store'})
             return
-        self._audit('auth.oidc.login_succeeded', actor=identity.username, details={'roles': ','.join(identity.roles)})
+        self._audit('auth.oidc.login_succeeded', actor=identity.subject or identity.username, details={'roles': ','.join(identity.roles)})
         headers = {
             'Location': '/',
             'Set-Cookie': IAM.session_cookie(session, self._is_secure_request()),
@@ -2269,7 +2269,7 @@ class AppHandler(BaseHTTPRequestHandler):
                 return
             required_permission = 'orders:create' if method == 'POST' else 'orders:read'
             if not can(session.identity, required_permission):
-                self._audit('orders.access.denied', actor=session.identity.username, success=False, details={'permission': required_permission})
+                self._audit('orders.access.denied', actor=session.identity.subject or session.identity.username, success=False, details={'permission': required_permission})
                 self._send_forbidden(include_body)
                 return
             if DATA is None:
@@ -2282,7 +2282,7 @@ class AppHandler(BaseHTTPRequestHandler):
                     self._send_json({'orders': orders}, 200, include_body, {'Cache-Control': 'no-store', 'Vary': 'Cookie'})
                     return
                 if not IAM.csrf_valid(session, self.headers.get('X-CSRF-Token')):
-                    self._audit('orders.create.csrf_failed', actor=session.identity.username, success=False)
+                    self._audit('orders.create.csrf_failed', actor=session.identity.subject or session.identity.username, success=False)
                     self._send_forbidden()
                     return
                 body = self._read_json_body()
@@ -2300,7 +2300,7 @@ class AppHandler(BaseHTTPRequestHandler):
                 )
                 self._audit(
                     'orders.create.replayed' if replayed else 'orders.create.succeeded',
-                    actor=session.identity.username,
+                    actor=session.identity.subject or session.identity.username,
                     details={'order': order['public_code'], 'city': order['city']},
                 )
                 headers = {'Cache-Control': 'no-store', 'Vary': 'Cookie'}
@@ -2308,19 +2308,19 @@ class AppHandler(BaseHTTPRequestHandler):
                     headers['Idempotency-Replayed'] = 'true'
                 self._send_json({'order': order, 'replayed': replayed}, 200 if replayed else 201, True, headers)
             except IdempotencyConflict:
-                self._audit('orders.create.idempotency_conflict', actor=session.identity.username, success=False)
+                self._audit('orders.create.idempotency_conflict', actor=session.identity.subject or session.identity.username, success=False)
                 self._send_json({'error': 'idempotency_key_reused'}, 409, include_body, {'Cache-Control': 'no-store'})
             except OrderInputError as error:
-                self._audit('orders.create.rejected', actor=session.identity.username, success=False, details={'reason': str(error)})
+                self._audit('orders.create.rejected', actor=session.identity.subject or session.identity.username, success=False, details={'reason': str(error)})
                 self._send_json({'error': str(error)}, 422, include_body, {'Cache-Control': 'no-store'})
             except RuntimeError as error:
                 if str(error) == 'address_encryption_unavailable':
-                    self._audit('orders.create.encryption_unavailable', actor=session.identity.username, success=False)
+                    self._audit('orders.create.encryption_unavailable', actor=session.identity.subject or session.identity.username, success=False)
                     self._send_json({'error': 'data_store_unavailable'}, 503, include_body, {'Cache-Control': 'no-store'})
                 else:
                     raise
             except DataStoreError:
-                self._audit('orders.create.failed', actor=session.identity.username, success=False)
+                self._audit('orders.create.failed', actor=session.identity.subject or session.identity.username, success=False)
                 self._send_json({'error': 'data_store_unavailable'}, 503, include_body, {'Cache-Control': 'no-store'})
             return
 
@@ -2381,11 +2381,11 @@ class AppHandler(BaseHTTPRequestHandler):
                 self._send_unauthorized()
                 return
             if not IAM.csrf_valid(session, self.headers.get('X-CSRF-Token')):
-                self._audit('auth.logout.csrf_failed', actor=session.identity.username, success=False)
+                self._audit('auth.logout.csrf_failed', actor=session.identity.subject or session.identity.username, success=False)
                 self._send_forbidden()
                 return
             IAM.sessions.revoke(session.token)
-            self._audit('auth.logout', actor=session.identity.username)
+            self._audit('auth.logout', actor=session.identity.subject or session.identity.username)
             headers = {'Set-Cookie': IAM.clear_cookies(self._is_secure_request()), 'Cache-Control': 'no-store'}
             self._send_json({'authenticated': False}, 200, include_body, headers)
             return
@@ -2403,10 +2403,10 @@ class AppHandler(BaseHTTPRequestHandler):
                 self._send_unauthorized(include_body)
                 return
             if not can(session.identity, required_permission):
-                self._audit('admin.access.denied', actor=session.identity.username, success=False, details={'resource': path, 'permission': required_permission})
+                self._audit('admin.access.denied', actor=session.identity.subject or session.identity.username, success=False, details={'resource': path, 'permission': required_permission})
                 self._send_forbidden(include_body)
                 return
-            self._audit('admin.access.granted', actor=session.identity.username, details={'resource': path})
+            self._audit('admin.access.granted', actor=session.identity.subject or session.identity.username, details={'resource': path})
             try:
                 if DATA is None:
                     if os.environ.get('APP_ENV', 'development').lower() == 'production':
