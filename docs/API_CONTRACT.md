@@ -96,7 +96,7 @@
 
 ### `POST /api/orders`
 
-ينشئ طلباً فعلياً في production فقط. المتطلبات:
+ينشئ طلباً فعلياً عندما يكون PostgreSQL مهيأً (وهو الوضع المطلوب في production)؛ المعاينة الافتراضية لا تحفظ طلباً. المتطلبات:
 
 - جلسة OIDC بدور `customer` وpermission `orders:create`.
 - `X-CSRF-Token` صالح.
