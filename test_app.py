@@ -58,6 +58,7 @@ class AppSecurityTests(unittest.TestCase):
         self.assertEqual(response.status, 200)
         self.assertIn('cleaning', payload)
         self.assertEqual(response.headers['Cache-Control'], 'public, max-age=60')
+        self.assertNotIn('Pragma', response.headers)
 
     def test_provider_directory_is_not_fabricated_in_development(self):
         response = self.fetch('/api/providers?service_slug=cleaning&city=amman')

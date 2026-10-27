@@ -2040,6 +2040,8 @@ class AppHandler(BaseHTTPRequestHandler):
         nonce = nonce or secrets.token_urlsafe(18)
         headers = self._security_headers(nonce)
         headers.update(extra_headers or {})
+        if headers.get('Cache-Control', '').lower().startswith('public'):
+            headers.pop('Pragma', None)
         self.send_response(status)
         self.send_header('Content-Type', content_type)
         self.send_header('Content-Length', str(len(body)))
