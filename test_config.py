@@ -73,6 +73,10 @@ class ProductionConfigTests(unittest.TestCase):
         }
         self.assertIn('OIDC_SCOPES must include openid when explicitly configured', validate_production_env(env))
 
+    def test_invalid_oidc_role_map_is_rejected(self):
+        issues = validate_production_env({'APP_ENV': 'production', 'OIDC_ROLE_MAP': 'not-a-role=group'})
+        self.assertIn('OIDC_ROLE_MAP contains an invalid application-role mapping', issues)
+
     def test_redirect_must_belong_to_public_origin(self):
         env = {
             'APP_ENV': 'production',

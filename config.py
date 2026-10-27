@@ -67,6 +67,15 @@ def validate_production_env(env: dict[str, str] | None = None) -> list[str]:
     scopes = set(_value(values, "OIDC_SCOPES").split())
     if scopes and "openid" not in scopes:
         issues.append("OIDC_SCOPES must include openid when explicitly configured")
+    role_map_text = _value(values, "OIDC_ROLE_MAP")
+    if role_map_text:
+        valid_roles = {"customer", "owner", "ops_manager", "security_auditor", "support_lead"}
+        mappings = []
+        for item in role_map_text.split(","):
+            parts = item.split("=", 1)
+            mappings.append((parts[0].strip(), parts[1].strip()) if len(parts) == 2 else ("", ""))
+        if not mappings or any(app_role not in valid_roles or not provider_group for app_role, provider_group in mappings):
+            issues.append("OIDC_ROLE_MAP contains an invalid application-role mapping")
     redirect_uri = _value(values, "OIDC_REDIRECT_URI")
     _https_url(redirect_uri, "OIDC_REDIRECT_URI", issues)
     if public_origin and redirect_uri and not redirect_uri.startswith(public_origin.rstrip("/") + "/"):

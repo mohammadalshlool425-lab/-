@@ -7,7 +7,8 @@
 الطريقة المفضلة تستخدم runner مع advisory lock وchecksum:
 
 ```bash
-python scripts/migrate.py --database-url "$DATABASE_URL"
+# DATABASE_URL يحقنه Secret Manager في بيئة العملية، ولا يُمرر كسطر command line.
+python scripts/migrate.py
 python scripts/migrate.py --dry-run
 ```
 
