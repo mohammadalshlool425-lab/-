@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from typing import Any
 
 
@@ -21,6 +22,11 @@ class OrderInputError(ValueError):
 
 class IdempotencyConflict(ValueError):
     """Raised when a key is reused with a different order payload."""
+
+
+_IDEMPOTENCY_PATTERN = re.compile(r"^[A-Za-z0-9._:-]{16,128}$")
+_SERVICE_SLUG_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]{1,79}$")
+_ORDER_CITIES = frozenset({"amman", "irbid", "zarqa", "aqaba", "other"})
 
 
 class PostgresRepository:
@@ -220,9 +226,23 @@ class PostgresRepository:
         actor_subject: str | None = None,
     ) -> tuple[dict[str, Any], bool]:
         """Create one order and its first event atomically, or return an idempotent replay."""
-        if not external_subject or not service_slug or not city or not idempotency_key:
+        if (
+            not isinstance(external_subject, str)
+            or not external_subject
+            or not isinstance(service_slug, str)
+            or not _SERVICE_SLUG_PATTERN.fullmatch(service_slug)
+            or not isinstance(city, str)
+            or city not in _ORDER_CITIES
+        ):
             raise OrderInputError("required_order_field")
-        if not isinstance(address_ciphertext, bytes) or not isinstance(address_nonce, bytes):
+        if not isinstance(idempotency_key, str) or not _IDEMPOTENCY_PATTERN.fullmatch(idempotency_key):
+            raise OrderInputError("invalid_idempotency_key")
+        if (
+            not isinstance(address_ciphertext, bytes)
+            or not isinstance(address_nonce, bytes)
+            or len(address_ciphertext) < 16
+            or len(address_nonce) != 12
+        ):
             raise OrderInputError("encrypted_address_required")
         if not isinstance(request_fingerprint, bytes) or len(request_fingerprint) != 32:
             raise OrderInputError("request_fingerprint_required")
@@ -231,7 +251,7 @@ class PostgresRepository:
             address_key_version = int(address_key_version)
         except (TypeError, ValueError) as error:
             raise OrderInputError("invalid_order_amount") from error
-        if estimated_amount_minor < 0 or address_key_version < 1:
+        if estimated_amount_minor < 0 or estimated_amount_minor > 10_000_000 or not 1 <= address_key_version <= 32_767:
             raise OrderInputError("invalid_order_value")
 
         try:

@@ -1,7 +1,7 @@
 import unittest
 from datetime import datetime, timezone
 
-from repository import PostgresRepository
+from repository import OrderInputError, PostgresRepository
 
 
 class FakeResult:
@@ -105,7 +105,7 @@ class RepositoryTests(unittest.TestCase):
             external_subject='oidc-subject-1',
             service_slug='cleaning',
             city='amman',
-            address_ciphertext=b'encrypted',
+            address_ciphertext=b'0123456789012345',
             address_nonce=b'012345678901',
             address_key_version=1,
             request_fingerprint=b'fingerprint-12345678901234567890',
@@ -122,6 +122,24 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn('ON CONFLICT (customer_id, idempotency_key) DO NOTHING', order_sql)
         self.assertIn('request_fingerprint', order_sql)
         self.assertEqual(order_sql.count('%s'), len(order_params))
+
+    def test_order_input_rejects_invalid_encryption_material_before_database_write(self):
+        start = datetime(2026, 10, 27, 10, tzinfo=timezone.utc)
+        with self.assertRaises(OrderInputError):
+            self.repository.create_order(
+                external_subject='oidc-subject-1',
+                service_slug='cleaning',
+                city='amman',
+                address_ciphertext=b'too-short',
+                address_nonce=b'012345678901',
+                address_key_version=1,
+                request_fingerprint=b'fingerprint-12345678901234567890',
+                estimated_amount_minor=1500,
+                scheduled_from=start,
+                scheduled_to=start.replace(hour=11),
+                idempotency_key='request-key-123456',
+            )
+        self.assertEqual(self.pool.connection_instance.queries, [])
 
     def test_admin_overview_is_read_from_database_row(self):
         self.assertEqual(self.repository.admin_overview(), {

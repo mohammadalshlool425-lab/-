@@ -9,6 +9,7 @@ from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 import app
+from security import Identity
 
 
 class AppSecurityTests(unittest.TestCase):
@@ -27,6 +28,10 @@ class AppSecurityTests(unittest.TestCase):
 
     def fetch(self, path='/', method='GET'):
         request = Request(self.base_url + path, method=method)
+        return urlopen(request, timeout=3)
+
+    def request(self, path, method='GET', data=None, headers=None):
+        request = Request(self.base_url + path, data=data, method=method, headers=headers or {})
         return urlopen(request, timeout=3)
 
     def test_html_has_nonce_bound_to_csp(self):
@@ -128,6 +133,68 @@ class AppSecurityTests(unittest.TestCase):
             self.assertNotEqual(first['request_fingerprint'], third['request_fingerprint'])
             self.assertEqual(len(first['request_fingerprint']), 32)
         finally:
+            if original_key is None:
+                os.environ.pop('ORDER_ADDRESS_ENCRYPTION_KEY', None)
+            else:
+                os.environ['ORDER_ADDRESS_ENCRYPTION_KEY'] = original_key
+
+    def test_authenticated_order_creation_encrypts_address_and_uses_subject(self):
+        class FakeOrderRepository:
+            def __init__(self):
+                self.calls = []
+
+            def create_order(self, **kwargs):
+                self.calls.append(kwargs)
+                return ({
+                    'id': 'order-1',
+                    'public_code': 'EZW-TEST1',
+                    'status': 'requested',
+                    'city': kwargs['city'],
+                    'estimated_amount_minor': kwargs['estimated_amount_minor'],
+                    'currency': 'JOD',
+                    'scheduled_from': kwargs['scheduled_from'].isoformat(),
+                    'scheduled_to': kwargs['scheduled_to'].isoformat(),
+                }, False)
+
+        original_data = app.DATA
+        original_encrypt = app._encrypt_order_address
+        original_key = os.environ.get('ORDER_ADDRESS_ENCRYPTION_KEY')
+        repository = FakeOrderRepository()
+        session = None
+        try:
+            os.environ['ORDER_ADDRESS_ENCRYPTION_KEY'] = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA'
+            app.DATA = repository
+            app._encrypt_order_address = lambda address: (b'encrypted-address', b'012345678901')
+            session = app.IAM.sessions.create(Identity('customer', ('customer',), subject='oidc-subject-1'))
+            start = datetime.now(timezone.utc) + timedelta(days=1)
+            body = json.dumps({
+                'service_slug': 'cleaning',
+                'city': 'amman',
+                'address': 'شارع الجامعة، بناية ١٢',
+                'estimated_amount_minor': 1500,
+                'scheduled_from': start.isoformat(),
+                'scheduled_to': (start + timedelta(hours=2)).isoformat(),
+            }, ensure_ascii=False).encode('utf-8')
+            response = self.request('/api/orders', method='POST', data=body, headers={
+                'Content-Type': 'application/json',
+                'Cookie': app.IAM.session_cookie(session, secure=False),
+                'X-CSRF-Token': session.csrf_token,
+                'Idempotency-Key': 'test-order-key-1234',
+            })
+            payload = json.loads(response.read().decode('utf-8'))
+            self.assertEqual(response.status, 201)
+            self.assertFalse(payload['replayed'])
+            self.assertEqual(payload['order']['public_code'], 'EZW-TEST1')
+            self.assertEqual(repository.calls[0]['external_subject'], 'oidc-subject-1')
+            self.assertEqual(repository.calls[0]['actor_subject'], 'oidc-subject-1')
+            self.assertEqual(repository.calls[0]['address_ciphertext'], b'encrypted-address')
+            self.assertEqual(len(repository.calls[0]['request_fingerprint']), 32)
+            self.assertNotIn('شارع الجامعة'.encode('utf-8'), repository.calls[0]['request_fingerprint'])
+        finally:
+            if session:
+                app.IAM.sessions.revoke(session.token)
+            app.DATA = original_data
+            app._encrypt_order_address = original_encrypt
             if original_key is None:
                 os.environ.pop('ORDER_ADDRESS_ENCRYPTION_KEY', None)
             else:
