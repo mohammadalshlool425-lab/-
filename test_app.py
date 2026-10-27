@@ -1,8 +1,11 @@
 from datetime import datetime, timedelta, timezone
+import json
 import os
 import re
 import threading
+import time
 import unittest
+from unittest.mock import patch
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 import app
@@ -48,6 +51,23 @@ class AppSecurityTests(unittest.TestCase):
         self.assertEqual(response.headers['Referrer-Policy'], 'no-referrer')
         self.assertEqual(response.headers['Cache-Control'], 'no-store, max-age=0')
         self.assertTrue(response.headers['X-Request-ID'])
+
+    def test_access_log_is_structured_and_route_safe(self):
+        handler = app.AppHandler.__new__(app.AppHandler)
+        handler.path = '/api/providers?service_slug=cleaning&city=amman'
+        handler.command = 'GET'
+        handler.client_address = ('127.0.0.1', 12345)
+        handler._request_id_value = 'request-test'
+        handler._request_started_at = time.monotonic() - 0.01
+        with patch('builtins.print') as printed:
+            handler.log_message('%s %s %s', 'GET', '200', 'ignored')
+        record = json.loads(printed.call_args.args[0])
+        self.assertEqual(record['event'], 'http.request')
+        self.assertEqual(record['request_id'], 'request-test')
+        self.assertEqual(record['path'], '/api/providers')
+        self.assertEqual(record['status'], 200)
+        self.assertNotIn('cleaning', printed.call_args.args[0])
+        self.assertTrue(printed.call_args.kwargs['flush'])
 
     def test_readiness_endpoint_checks_assets(self):
         response = self.fetch('/ready')

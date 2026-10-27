@@ -2026,6 +2026,7 @@ class AppHandler(BaseHTTPRequestHandler):
 
     def setup(self):
         super().setup()
+        self._request_started_at = time.monotonic()
         self.connection.settimeout(REQUEST_SOCKET_TIMEOUT_SECONDS)
 
     def _client_ip(self):
@@ -2546,11 +2547,40 @@ class AppHandler(BaseHTTPRequestHandler):
         self._send_payload(b'', 'text/plain; charset=utf-8', 204, False, {'Allow': 'GET, HEAD, POST, OPTIONS'})
 
     def log_message(self, format, *args):
-        # Keep logs useful without echoing query strings or user-controlled values.
-        status = args[1] if len(args) > 1 else '-'
+        # Keep logs structured without echoing query strings or user-controlled values.
+        raw_status = args[1] if len(args) > 1 else '-'
+        try:
+            status = int(raw_status)
+        except (TypeError, ValueError):
+            status = 0
         path = self._request_path()
-        safe_path = path if path in {'/', '/health'} else '<other>'
-        print(f"{self._request_id()} {self._client_ip()} {status} {safe_path}")
+        safe_paths = {
+            '/',
+            '/health',
+            '/ready',
+            '/auth/login',
+            '/auth/callback',
+            '/api/services',
+            '/api/providers',
+            '/api/orders',
+            '/api/auth/status',
+            '/api/auth/login',
+            '/api/auth/logout',
+            '/api/admin/overview',
+            '/api/admin/security',
+            '/api/admin/audit',
+        }
+        safe_path = path if path in safe_paths else '<other>'
+        started_at = getattr(self, '_request_started_at', time.monotonic())
+        record = {
+            'event': 'http.request',
+            'request_id': self._request_id(),
+            'method': str(getattr(self, 'command', ''))[:10],
+            'path': safe_path,
+            'status': status,
+            'duration_ms': round(max(0.0, time.monotonic() - started_at) * 1000, 2),
+        }
+        print(json.dumps(record, ensure_ascii=False, separators=(',', ':')), flush=True)
 
 
 class EzwatekHTTPServer(ThreadingHTTPServer):

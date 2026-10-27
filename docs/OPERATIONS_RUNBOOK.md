@@ -38,7 +38,7 @@ python scripts/load_smoke.py --url http://127.0.0.1:8000/health --requests 100 -
 5. انشر صورة Docker غير root أو حزمة النظام عبر systemd. لا تفتح المنفذ الداخلي للعامة.
 6. تحقق من `GET /health` ثم `GET /ready`. health يثبت liveness فقط، وready لا ينجح في production دون مخزن البيانات.
 7. تحقق من جلسة OIDC وPKCE وRBAC في staging بحساب اختبار، ثم اختبر إنشاء طلب بمفتاح idempotency واحد وإعادة إرساله.
-8. راقب أخطاء 4xx/5xx و`X-Request-ID` وaudit sink قبل تحويل كامل المرور.
+8. راقب سجلات HTTP JSON وأخطاء 4xx/5xx و`X-Request-ID` وaudit sink قبل تحويل كامل المرور؛ لا تجمع query strings أو عناوين العملاء في سجل الوصول.
 
 ## الترحيل والتراجع
 
