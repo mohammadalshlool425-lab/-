@@ -19,7 +19,7 @@ import threading
 import time
 from collections.abc import Callable
 from urllib.parse import urlencode, urlsplit
-from urllib.request import Request, urlopen
+from urllib.request import HTTPRedirectHandler, Request, build_opener
 
 from security import Identity, ROLE_PERMISSIONS
 
@@ -39,6 +39,16 @@ return value
 
 class OIDCError(RuntimeError):
     """Raised for a safe, non-sensitive OIDC failure."""
+
+
+class _NoRedirectHandler(HTTPRedirectHandler):
+    """Do not let provider metadata redirect server-side HTTP requests."""
+
+    def redirect_request(self, request, file, code, msg, headers, new_url):
+        raise OIDCError("OIDC redirects are not allowed")
+
+
+_OIDC_OPENER = build_opener(_NoRedirectHandler())
 
 
 @dataclass(frozen=True)
@@ -363,7 +373,7 @@ class OIDCClient:
             return self._fetch_json_override(url)
         request = Request(url, headers={"Accept": "application/json", "User-Agent": "Ezwatek-OIDC/1"})
         try:
-            with urlopen(request, timeout=5) as response:  # nosec B310
+            with _OIDC_OPENER.open(request, timeout=5) as response:
                 return _read_json_response(response)
         except OIDCError:
             raise
@@ -380,7 +390,7 @@ class OIDCClient:
             headers["Authorization"] = f"Basic {basic}"
         request = Request(url, data=body, headers=headers, method="POST")
         try:
-            with urlopen(request, timeout=5) as response:  # nosec B310
+            with _OIDC_OPENER.open(request, timeout=5) as response:
                 return _read_json_response(response)
         except OIDCError:
             raise

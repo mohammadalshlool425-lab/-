@@ -3,7 +3,7 @@ import hashlib
 import unittest
 from urllib.parse import parse_qs, urlsplit
 
-from oidc import MemoryStateStore, OIDCClient, OIDCConfig, OIDCError, _roles_from_claims
+from oidc import MemoryStateStore, OIDCClient, OIDCConfig, OIDCError, _NoRedirectHandler, _roles_from_claims
 
 
 class OIDCTests(unittest.TestCase):
@@ -70,6 +70,10 @@ class OIDCTests(unittest.TestCase):
         )
         roles = _roles_from_claims({'resource_access': {'ezwatek-web': {'roles': [{'not': 'a string'}]}}}, config)
         self.assertEqual(roles, ())
+
+    def test_provider_redirects_are_rejected(self):
+        with self.assertRaises(OIDCError):
+            _NoRedirectHandler().redirect_request(None, None, 302, 'found', {}, 'https://attacker.example/')
 
     def test_invalid_endpoint_is_rejected(self):
         config = OIDCConfig(
