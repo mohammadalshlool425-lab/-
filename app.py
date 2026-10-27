@@ -878,7 +878,7 @@ HTML = r'''<!doctype html>
         <div class="nav-label">القائمة</div>
         <div class="nav-list">
           <button class="nav-item active" data-view="home" type="button"><span class="icon" data-icon="home"></span><span>الرئيسية</span></button>
-          <button class="nav-item" data-view="orders" type="button"><span class="icon" data-icon="clipboard"></span><span>طلباتي</span><span class="nav-count" id="ordersBadge">2</span></button>
+          <button class="nav-item" data-view="orders" type="button"><span class="icon" data-icon="clipboard"></span><span>طلباتي</span></button>
           <button class="nav-item" data-view="services" type="button"><span class="icon" data-icon="grid"></span><span>الخدمات</span></button>
           <button class="nav-item" data-view="favorites" type="button"><span class="icon" data-icon="heart"></span><span>المفضلة</span></button>
           <button class="nav-item" data-view="payments" type="button"><span class="icon" data-icon="wallet"></span><span>المدفوعات</span></button>
@@ -909,8 +909,8 @@ HTML = r'''<!doctype html>
         <button type="button" data-action="help">تواصل معنا ←</button>
       </div>
       <div class="profile-mini">
-        <div class="avatar">ل</div>
-        <div class="profile-mini-copy"><strong>ليان أحمد</strong><small>الحساب الشخصي</small></div>
+        <div class="avatar">؟</div>
+        <div class="profile-mini-copy"><strong>حسابك</strong><small>سجّلي الدخول للمتابعة</small></div>
         <span class="icon" data-icon="more"></span>
       </div>
     </aside>
@@ -920,12 +920,12 @@ HTML = r'''<!doctype html>
       <div class="preview-notice" role="status"><span class="icon" data-icon="info"></span><span>وضع المعاينة: يمكنك استكشاف تجربة عزوتك الأردنية، لكن لا يتم إنشاء حجوزات أو دفعات أو حسابات فعلية بعد.</span></div>
       <!-- PREVIEW_NOTICE_END -->
       <header class="topbar">
-        <div class="date-label">الإثنين، <strong>٢٦ أكتوبر ٢٠٢٦</strong></div>
+        <div class="date-label"><strong>أهلاً بك في عزوتك</strong></div>
         <div class="topbar-actions">
           <!-- PREVIEW_NOTIFICATIONS_START -->
           <button class="round-button" type="button" id="notificationButton" aria-label="الإشعارات" aria-expanded="false"><span class="icon" data-icon="bell"></span><i class="notification-dot"></i></button>
           <!-- PREVIEW_NOTIFICATIONS_END -->
-          <div class="top-profile" id="profileButton" role="button" tabindex="0" aria-label="فتح الحساب"><div class="top-profile-copy"><strong>ليان أحمد</strong><small>آخر دخول: الآن</small></div><div class="avatar">ل</div></div>
+          <div class="top-profile" id="profileButton" role="button" tabindex="0" aria-label="فتح الحساب"><div class="top-profile-copy"><strong>حسابك</strong><small>سجّلي الدخول للمتابعة</small></div><div class="avatar">؟</div></div>
         </div>
       </header>
 
@@ -933,7 +933,7 @@ HTML = r'''<!doctype html>
       <section class="view active" id="home-view" data-page="home">
         <div class="welcome-row">
           <div class="welcome-copy">
-            <h1>مساء الخير، ليان <span class="sparkle">✦</span></h1>
+            <h1>أهلاً بك في عزوتك <span class="sparkle">✦</span></h1>
             <p>شو حابة ننجز لك اليوم؟</p>
           </div>
           <button class="primary-button new-service-btn" type="button" data-book="تنظيف وتعقيم"><span class="icon" data-icon="plus"></span><span>اطلب خدمة</span></button>
@@ -975,16 +975,16 @@ HTML = r'''<!doctype html>
         <div class="section-heading"><div><h2>شو بدك ننجز لك اليوم؟</h2><p>خدمات أساسية بلمسة واحدة</p></div><button class="text-button" type="button" data-view="services">كل الخدمات <span class="icon" data-icon="arrow-left"></span></button></div>
         <div class="service-grid" id="homeServices">
           <button class="service-card" type="button" data-service-card data-service="صيانة منزلية" data-search="صيانة منزلية تصليح فني سباكة كهرباء">
-            <span class="service-icon green"><span class="icon" data-icon="wrench"></span></span><strong>صيانة منزلية</strong><small>+ ٢٤ مزوّداً</small><span class="icon service-arrow" data-icon="arrow-left"></span>
+            <span class="service-icon green"><span class="icon" data-icon="wrench"></span></span><strong>صيانة منزلية</strong><small>سباكة، نجارة، أجهزة</small><span class="icon service-arrow" data-icon="arrow-left"></span>
           </button>
           <button class="service-card" type="button" data-service-card data-service="تنظيف وتعقيم" data-search="تنظيف تعقيم بيت مكتب">
-            <span class="service-icon amber"><span class="icon" data-icon="sparkles"></span></span><strong>تنظيف وتعقيم</strong><small>+ ١٨ مزوّداً</small><span class="icon service-arrow" data-icon="arrow-left"></span>
+            <span class="service-icon amber"><span class="icon" data-icon="sparkles"></span></span><strong>تنظيف وتعقيم</strong><small>للبيت والمكتب</small><span class="icon service-arrow" data-icon="arrow-left"></span>
           </button>
           <button class="service-card" type="button" data-service-card data-service="نقل وشحن" data-search="نقل شحن عفش توصيل">
-            <span class="service-icon purple"><span class="icon" data-icon="truck"></span></span><strong>نقل وشحن</strong><small>+ ١٢ مزوّداً</small><span class="icon service-arrow" data-icon="arrow-left"></span>
+            <span class="service-icon purple"><span class="icon" data-icon="truck"></span></span><strong>نقل وشحن</strong><small>عفش، طرود، توصيل</small><span class="icon service-arrow" data-icon="arrow-left"></span>
           </button>
           <button class="service-card" type="button" data-service-card data-service="كهرباء وسباكة" data-search="كهرباء سباكة طوارئ">
-            <span class="service-icon blue"><span class="icon" data-icon="bolt"></span></span><strong>كهرباء وسباكة</strong><small>+ ٣١ مزوّداً</small><span class="icon service-arrow" data-icon="arrow-left"></span>
+            <span class="service-icon blue"><span class="icon" data-icon="bolt"></span></span><strong>كهرباء وسباكة</strong><small>حلول سريعة للبيت</small><span class="icon service-arrow" data-icon="arrow-left"></span>
           </button>
           <div class="no-results" id="homeNoResults">ما لقينا خدمة بهالاسم. جرّبي كلمة ثانية.</div>
         </div>
@@ -1021,7 +1021,7 @@ HTML = r'''<!doctype html>
       <!-- Orders -->
       <section class="view" id="orders-view" data-page="orders">
         <div class="page-title"><div><h1>طلباتي</h1><p>تابعي كل خدماتك من مكان واحد.</p></div><button class="primary-button" type="button" data-book="تنظيف وتعقيم"><span class="icon" data-icon="plus"></span> طلب جديد</button></div>
-        <div class="filter-pills"><button class="filter-pill active" type="button">الكل (٣)</button><button class="filter-pill" type="button">قيد التنفيذ (١)</button><button class="filter-pill" type="button">مكتملة (٢)</button></div>
+        <div class="filter-pills"><button class="filter-pill active" type="button">الكل</button><button class="filter-pill" type="button">قيد التنفيذ</button><button class="filter-pill" type="button">مكتملة</button></div>
         <div class="orders-list" id="customerOrdersList">
           <!-- CUSTOMER_SAMPLE_ORDERS_START -->
           <article class="order-row"><div class="provider-avatar">ي</div><div class="order-row-copy"><strong>صيانة تكييف سبليت</strong><p>مع يوسف للخدمات المنزلية · #SN-2841</p></div><div class="order-row-date"><strong>اليوم، ٥:٣٠ م</strong>الدوار السابع</div><span class="status-pill">قيد التنفيذ</span><button class="order-row-action" type="button" data-action="track">تتبع الطلب ←</button></article>
@@ -1132,13 +1132,13 @@ HTML = r'''<!doctype html>
       <!-- Settings -->
       <section class="view" id="settings-view" data-page="settings">
         <div class="page-title"><div><h1>الإعدادات</h1><p>عدّلي تفضيلاتك بالطريقة اللي بتناسبك.</p></div></div>
-        <div class="settings-list"><div class="setting-row"><span class="setting-icon"><span class="icon" data-icon="user"></span></span><span class="setting-copy"><strong>البيانات الشخصية</strong><small>ليان أحمد · 079 123 4567</small></span><span class="icon" data-icon="chevron-left"></span></div><div class="setting-row"><span class="setting-icon"><span class="icon" data-icon="bell"></span></span><span class="setting-copy"><strong>التنبيهات</strong><small>تحديثات الطلب والعروض</small></span><button class="toggle on" type="button"><span></span></button></div><div class="setting-row"><span class="setting-icon"><span class="icon" data-icon="location"></span></span><span class="setting-copy"><strong>العناوين المحفوظة</strong><small>الدوار السابع، عمّان</small></span><span class="icon" data-icon="chevron-left"></span></div><div class="setting-row"><span class="setting-icon"><span class="icon" data-icon="lock"></span></span><span class="setting-copy"><strong>الخصوصية والأمان</strong><small>حسابك وبياناتك محمية</small></span><span class="icon" data-icon="chevron-left"></span></div></div>
+        <div class="settings-list"><div class="setting-row"><span class="setting-icon"><span class="icon" data-icon="user"></span></span><span class="setting-copy"><strong>البيانات الشخصية</strong><small>سجّلي الدخول لإدارة بياناتك</small></span><span class="icon" data-icon="chevron-left"></span></div><div class="setting-row"><span class="setting-icon"><span class="icon" data-icon="bell"></span></span><span class="setting-copy"><strong>التنبيهات</strong><small>تحديثات الطلب والعروض</small></span><button class="toggle on" type="button"><span></span></button></div><div class="setting-row"><span class="setting-icon"><span class="icon" data-icon="location"></span></span><span class="setting-copy"><strong>العناوين المحفوظة</strong><small>تظهر بعد تسجيل الدخول</small></span><span class="icon" data-icon="chevron-left"></span></div><div class="setting-row"><span class="setting-icon"><span class="icon" data-icon="lock"></span></span><span class="setting-copy"><strong>الخصوصية والأمان</strong><small>حسابك وبياناتك محمية</small></span><span class="icon" data-icon="chevron-left"></span></div></div>
       </section>
     </main>
 
     <nav class="mobile-nav" aria-label="التنقل السريع">
       <button class="nav-item active" data-view="home" type="button"><span class="icon" data-icon="home"></span><span>الرئيسية</span></button>
-      <button class="nav-item" data-view="orders" type="button"><span class="icon" data-icon="clipboard"></span><span>طلباتي</span><span class="nav-count">2</span></button>
+      <button class="nav-item" data-view="orders" type="button"><span class="icon" data-icon="clipboard"></span><span>طلباتي</span></button>
       <button class="nav-item" data-view="services" type="button"><span class="icon" data-icon="grid"></span><span>الخدمات</span></button>
       <button class="nav-item" data-view="favorites" type="button"><span class="icon" data-icon="heart"></span><span>المفضلة</span></button>
       <button class="nav-item" data-view="settings" type="button"><span class="icon" data-icon="settings"></span><span>حسابي</span></button>

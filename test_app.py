@@ -172,6 +172,9 @@ class AppSecurityTests(unittest.TestCase):
             self.assertNotIn('طلبك الحالي', rendered_without_home_samples)
             rendered_without_providers = app.remove_marked_blocks(app.HTML, app.PREVIEW_PROVIDERS_START, app.PREVIEW_PROVIDERS_END)
             self.assertNotIn('<button class="provider-card" type="button" data-book="تنظيف وتعقيم">', rendered_without_providers)
+            self.assertNotIn('ليان أحمد', app.HTML)
+            self.assertNotIn('079 123 4567', app.HTML)
+            self.assertNotIn('nav-count">2', app.HTML)
         finally:
             if original_env is None:
                 os.environ.pop('APP_ENV', None)
