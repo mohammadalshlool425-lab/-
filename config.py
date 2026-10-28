@@ -99,6 +99,12 @@ def validate_production_env(env: dict[str, str] | None = None) -> list[str]:
             issues.append("OIDC_ROLE_MAP contains an invalid application-role mapping")
         elif len(mapped_roles) != len(set(mapped_roles)):
             issues.append("OIDC_ROLE_MAP contains duplicate application roles")
+        else:
+            mapped_role_set = set(mapped_roles)
+            if "customer" not in mapped_role_set:
+                issues.append("OIDC_ROLE_MAP must include a customer role for order creation")
+            if not mapped_role_set.intersection({"owner", "ops_manager"}):
+                issues.append("OIDC_ROLE_MAP must include owner or ops_manager for administration")
     redirect_uri = _value(values, "OIDC_REDIRECT_URI")
     _https_url(redirect_uri, "OIDC_REDIRECT_URI", issues)
     if public_origin and redirect_uri and not redirect_uri.startswith(public_origin.rstrip("/") + "/"):

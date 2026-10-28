@@ -139,10 +139,10 @@ class PostgresRepository:
                                ) AS required(table_name, column_name)
                                WHERE NOT EXISTS (
                                    SELECT 1
-                                   FROM information_schema.columns AS columns
-                                   WHERE columns.table_schema = 'public'
-                                     AND columns.table_name = required.table_name
-                                     AND columns.column_name = required.column_name
+                                   FROM information_schema.columns AS ic
+                                   WHERE ic.table_schema = 'public'
+                                     AND ic.table_name = required.table_name
+                                     AND ic.column_name = required.column_name
                                )
                            ) AS schema_contract_ready
                 """).fetchone()

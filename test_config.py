@@ -91,6 +91,12 @@ class ProductionConfigTests(unittest.TestCase):
         issues = validate_production_env({'APP_ENV': 'production', 'OIDC_ROLE_MAP': 'owner=group-a,owner=group-b'})
         self.assertIn('OIDC_ROLE_MAP contains duplicate application roles', issues)
 
+    def test_oidc_role_map_requires_customer_and_admin_roles(self):
+        customer_only = validate_production_env({'APP_ENV': 'production', 'OIDC_ROLE_MAP': 'customer=group-customer'})
+        self.assertIn('OIDC_ROLE_MAP must include owner or ops_manager for administration', customer_only)
+        owner_only = validate_production_env({'APP_ENV': 'production', 'OIDC_ROLE_MAP': 'owner=group-owner'})
+        self.assertIn('OIDC_ROLE_MAP must include a customer role for order creation', owner_only)
+
     def test_redirect_must_belong_to_public_origin(self):
         env = {
             'APP_ENV': 'production',
