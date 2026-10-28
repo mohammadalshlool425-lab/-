@@ -260,6 +260,17 @@ class AppSecurityTests(unittest.TestCase):
         self.assertEqual(caught.exception.code, 405)
         self.assertEqual(caught.exception.headers['X-Content-Type-Options'], 'nosniff')
 
+    def test_malformed_post_path_is_a_bad_request_not_a_method_fallback(self):
+        request = Request(self.base_url + '/%2e%2e/%2e%2e/etc/passwd', data=b'{}', method='POST')
+        with self.assertRaises(HTTPError) as caught:
+            urlopen(request, timeout=3)
+        self.assertEqual(caught.exception.code, 400)
+
+    def test_options_is_rate_limited_and_advertises_methods(self):
+        response = self.fetch('/api/services', method='OPTIONS')
+        self.assertEqual(response.status, 204)
+        self.assertEqual(response.headers['Allow'], 'GET, HEAD, POST, OPTIONS')
+
     def test_production_can_remove_public_admin_markup(self):
         original_env = os.environ.get('APP_ENV')
         original_flag = os.environ.get('ADMIN_UI_ENABLED')

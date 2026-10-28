@@ -2523,6 +2523,9 @@ class AppHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         path = self._request_path()
+        if path is None:
+            self._serve(include_body=True, method='POST')
+            return
         if path in {'/api/auth/login', '/api/auth/logout', '/api/orders'}:
             self._serve(include_body=True, method='POST')
             return
@@ -2544,6 +2547,9 @@ class AppHandler(BaseHTTPRequestHandler):
         self._reject_state_change()
 
     def do_OPTIONS(self):
+        if not self._rate_allowed():
+            self._send_json({'error': 'too_many_requests'}, 429, True, {'Retry-After': str(RATE_LIMIT_WINDOW)})
+            return
         self._send_payload(b'', 'text/plain; charset=utf-8', 204, False, {'Allow': 'GET, HEAD, POST, OPTIONS'})
 
     def log_message(self, format, *args):
