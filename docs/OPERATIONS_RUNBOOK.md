@@ -33,7 +33,7 @@ python scripts/load_smoke.py --url http://127.0.0.1:8000/health --requests 100 -
 python scripts/staging_gate.py --base-url https://staging.your-domain.jo --allow-remote
 ```
 
-هذه البوابة لا تنشئ بيانات أو تدّعي نجاح الدفع؛ اختبار الدفع والإشعارات وwebhooks يحتاج حسابات sandbox حقيقية للمزودين.
+هذه البوابة لا تنشئ بيانات أو تدّعي نجاح الدفع؛ اختبار الدفع والإشعارات وwebhooks يحتاج حسابات sandbox حقيقية للمزودين. ويمكن تشغيلها من GitHub Actions يدوياً بعد تعريف repository variable باسم `STAGING_BASE_URL` وتفعيل input `run_staging_gate`؛ لا تُحفظ أسرار داخل المتغير.
 
 لا تستخدم `--allow-remote` إلا مع اسم staging معتمد وتذكرة تغيير واضحة. يجب أن تكون نتيجة DAST وload smoke جزءاً من سجل الإصدار، لا بديلاً عن اختبار التكامل الحقيقي.
 

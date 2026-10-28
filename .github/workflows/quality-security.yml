@@ -5,6 +5,12 @@ on:
     branches: ["main", "arena/**"]
   pull_request:
   workflow_dispatch:
+    inputs:
+      run_staging_gate:
+        description: "Run the fail-closed gate against the approved STAGING_BASE_URL repository variable"
+        required: true
+        default: false
+        type: boolean
 
 permissions:
   contents: read
@@ -100,6 +106,22 @@ jobs:
       - name: Stop preview server
         if: always()
         run: kill "$(cat /tmp/ezwatek-dast.pid)" 2>/dev/null || true
+
+  staging-gate:
+    name: Approved staging integration gate
+    if: github.event_name == 'workflow_dispatch' && inputs.run_staging_gate == true && vars.STAGING_BASE_URL != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7.0.1
+      - name: Set up Python
+        uses: actions/setup-python@v7.1.0
+        with:
+          python-version: "3.13"
+      - name: Run fail-closed staging gate
+        env:
+          STAGING_BASE_URL: ${{ vars.STAGING_BASE_URL }}
+        run: python scripts/staging_gate.py --base-url "$STAGING_BASE_URL" --allow-remote
 
   codeql:
     name: CodeQL Python analysis
