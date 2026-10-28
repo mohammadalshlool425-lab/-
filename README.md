@@ -52,6 +52,7 @@ python -m py_compile app.py security.py jobs.py worker.py config.py oidc.py repo
 - `scripts/migrate.py`: تشغيل migrations بقفل PostgreSQL وchecksum ومنع تعديل migration مطبق.
 - `scripts/load_smoke.py`: اختبار حمل محدود وآمن للـ health endpoint محلياً أو على staging مصرح.
 - `scripts/dast_smoke.py`: فحوص DAST دفاعية للمسارات والرؤوس ورفض traversal والطلبات غير المصرح بها.
+- `scripts/staging_gate.py`: بوابة تكامل fail-closed لـ staging الحقيقي تتحقق من OIDC وreadiness والكتالوج وحدود الإدارة والطلبات.
 - `scripts/bootstrap_iam.py`: إنشاء hash كلمة المرور وTOTP secret دون حفظ الأسرار في المستودع.
 - `deploy/`: قوالب Reverse Proxy وTLS وWAF edge لـ Nginx وCaddy، ووحدة systemd وصورة Docker غير root.
 - `.env.example`: أسماء إعدادات IAM بدون أسرار حقيقية.

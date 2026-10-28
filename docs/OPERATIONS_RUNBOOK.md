@@ -27,6 +27,14 @@ python scripts/dast_smoke.py --base-url http://127.0.0.1:8000
 python scripts/load_smoke.py --url http://127.0.0.1:8000/health --requests 100 --concurrency 10
 ```
 
+بعد نشر staging الحقيقي، شغّل البوابة الصارمة التي ترفض preview وIAM المحلي وreadiness غير المكتمل:
+
+```bash
+python scripts/staging_gate.py --base-url https://staging.your-domain.jo --allow-remote
+```
+
+هذه البوابة لا تنشئ بيانات أو تدّعي نجاح الدفع؛ اختبار الدفع والإشعارات وwebhooks يحتاج حسابات sandbox حقيقية للمزودين.
+
 لا تستخدم `--allow-remote` إلا مع اسم staging معتمد وتذكرة تغيير واضحة. يجب أن تكون نتيجة DAST وload smoke جزءاً من سجل الإصدار، لا بديلاً عن اختبار التكامل الحقيقي.
 
 ## تسلسل النشر

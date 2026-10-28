@@ -26,7 +26,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
           cache: pip
       - name: Compile source
-        run: python -m py_compile app.py security.py jobs.py worker.py config.py oidc.py repository.py scripts/bootstrap_iam.py scripts/dast_smoke.py scripts/load_smoke.py scripts/migrate.py scripts/validate_production_config.py
+        run: python -m py_compile app.py security.py jobs.py worker.py config.py oidc.py repository.py scripts/bootstrap_iam.py scripts/dast_smoke.py scripts/load_smoke.py scripts/migrate.py scripts/staging_gate.py scripts/validate_production_config.py
       - name: Run tests
         run: python -m unittest -v
       - name: Check whitespace

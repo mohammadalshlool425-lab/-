@@ -58,7 +58,8 @@
 - unit/integration/e2e tests وcontract tests للـ API؛ الاختبارات الحالية تغطي HTTP وsecurity primitives وrepositories وOIDC وqueues.
 - SAST وSCA وCodeQL وdependency update automation مفعلة؛ DAST وload testing الفعليان متبقيان بعد تشغيل staging خلف WAF.
 - load test للحجز وتسجيل الدخول.
-- OpenTelemetry، metrics، structured logs، alerts، وincident runbooks.
+- بوابة `scripts/staging_gate.py` تتحقق من OIDC وreadiness وحدود API على staging الحقيقي دون نجاحات وهمية.
+- سجلات HTTP JSON و`X-Request-ID` موجودة؛ يبقى ربطها بمجمع مركزي وOpenTelemetry وmetrics وalerts واختبار الحجز/الدخول الحقيقي مطلوباً بعد توفير staging.
 - اختبار استعادة النسخ الاحتياطية وخطة disaster recovery.
 
 ## المرحلة 6 — ميزات السوق الأردني

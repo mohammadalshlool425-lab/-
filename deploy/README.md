@@ -89,6 +89,7 @@ export ORDER_ADDRESS_ENCRYPTION_KEY=inject-base64url-32-byte-key-from-secret-man
 التطبيق يوفر endpoints داخلية:
 
 - `GET /api/auth/status`
+- `scripts/staging_gate.py` بوابة تكامل fail-closed لـ staging الحقيقي؛ ترفض HTTP remote وpreview وIAM المحلي وreadiness غير المكتمل.
 - `GET /api/services` يقرأ الكتالوج النشط من PostgreSQL في production.
 - `GET /api/providers?service_slug=cleaning&city=amman` يعرض مزودين نشطين ومتحققاً منهم فقط؛ لا يعيد بيانات الهوية أو العنوان.
 - `GET /api/orders` يتطلب دور العميل ويعيد طلباته فقط.
